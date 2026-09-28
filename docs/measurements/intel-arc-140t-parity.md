@@ -1,8 +1,8 @@
 # Intel Arc 140T parity measurements
 
 Measured on 2026-09-27 for [PR #27](https://github.com/ollaya-dev/ollaya/pull/27).
-These results do **not** establish parity against the reviewer's CUDA reference.
-That fixture and its metadata were requested in the PR and were not available for these runs.
+The full Winnow-E4B comparison against the reviewer's CUDA reference **fails** the gate.
+Same-backend Vulkan parity passes for both measured models.
 
 ## Setup
 
@@ -10,6 +10,9 @@ That fixture and its metadata were requested in the PR and were not available fo
 - Intel Arc 140T integrated GPU, `Vulkan0`, driver `32.0.101.8860`.
   Vulkan reports about 37 GiB accessible memory. This is shared system memory, not a separate VRAM pool.
 - Ollaya revision `5ad1f9f61d4d46b15d9f937be536aab597575fa7`, after merging main `91f873c02fd4b8f95649c49e2aeb43f146a7fe7a`.
+  CUDA comparison runs used the same runner executable at checkout revision
+  `80ffebb898a1c327d011d2750b8f1f03c59319ea`; the intervening commit changed documentation
+  and reference-fixture filenames, not Rust inference code.
 - Stock `llama-b11146-bin-win-vulkan-x64.zip`: version `0.5.0-dev`, build 11146,
   commit `7fe450e19305b828c199d602c23a8337aaa1f03b`, Clang 20.1.8.
   The native parity runs used the stock libraries, not the local diagnostic build described below.
@@ -46,7 +49,51 @@ Winnow used 108 prefix steps, 397 barriers and 505 question steps. JevK5 used 57
 single-option questions require no inference. These passes establish fidelity to the same backend's
 reference. They do not establish matching outputs between Vulkan and CUDA.
 
+## CUDA-reference gate
+
+The maintainer supplied the [exact CUDA reference](https://gist.github.com/cobanov/c808f61976a8210235d8faf8ae91aa15)
+in [PR comment 5864110141](https://github.com/ollaya-dev/ollaya/pull/27#issuecomment-5864110141).
+Its SHA-256 was verified as `b0b15b5646e8cda17364b6097a9613eb231a88a4813b52c129423313447695fe`.
+The supplied decision and calibration JSON files exactly match the registry files used above.
+The reference comes from stock b11146 CUDA on an RTX 4090, Linux, 2026-09-26.
+
+| Arc implementation compared with CUDA | Matching decisions | Maximum logit difference | Maximum probability difference | Gate |
+| --- | ---: | ---: | ---: | --- |
+| Stock Vulkan llama-server, full 123 cases | 502/505 | 0.32614444 | 0.05600171 | FAIL |
+| Ollaya Vulkan runner, full 123 cases | 502/505 | 0.3261 | 0.05600 | FAIL |
+
+Both full comparisons cover the same 505 questions and 15 rejected cases. The stock comparison
+found no differences in prompt IDs, split points, candidates, wire order, state token counts or
+truncation. 502 questions exceed the 1e-3 logit tolerance. The runner reported the same decision
+changes and numerical range, separating the backend difference from an Ollaya wrapper error.
+
+The changed decisions were `preset/router/mask_text` / `domain`, `edge/many_options_40` / `intent`,
+and `td/customer_service_000080` / `churn_risk`.
+
+A targeted regression set contains the complete requests for those three cases, plus
+`preset/email/mask_text`, which has the largest logit difference: four cases, 15 questions.
+Its SHA-256 is `1253f4099d15b9e76ce6c48df85af8abb5d0901e6359e71b047c754f2a58f711`.
+
+| Targeted setting | Matching decisions | Maximum logit difference | Maximum probability difference |
+| --- | ---: | ---: | ---: |
+| Disable F16 | 12/15 | 0.3321 | 0.01769 |
+| Force MMVQ | 12/15 | 0.3279 | 0.01805 |
+| Conservative settings | 12/15 | 0.3299 | 0.01782 |
+| Disable cooperative matrices and cooperative matrices 2 | 13/15 | 0.1517 | 0.02258 |
+| Disable both cooperative matrix modes and force MMVQ | 12/15 | 0.1414 | 0.02262 |
+| Stock Vulkan server, flash attention disabled | 12/15 | 0.32484553 | 0.01751260 |
+| Ollaya CPU | 15/15 | 0.1915 | 0.03166 |
+
+Every targeted setting fails the unchanged logit tolerance. They were not expanded into further
+full runs, since the selected counterexamples already disprove a complete pass.
+
 ## CPU-reference diagnostic screen
+
+The completed stock CPU versus stock Vulkan comparison for JevK5 covers all 123 cases,
+593 questions and four rejected requests: 586/593 matching decisions, maximum normalized
+logit difference 0.33286801 and maximum probability difference 0.08266701.
+574 questions exceed the 1e-3 logit tolerance; prompt and state metadata match in all cases.
+The full CPU fixture SHA-256 is `d82aca8fb3d23cafcf554eb8aa55b49a843401e0d4b123afc5040ab06b6d5216`.
 
 A stock CPU reference was generated independently for JevK5. A fixed screen selected ten spread
 cases, 50 questions, from an initial 18-case snapshot of that reference. The identical screen was
@@ -94,6 +141,21 @@ Attempts to run the check-enabled server on a Winnow input did not complete: the
 was reset, including a retry with fusion, async execution and graph optimization disabled and
 serialized submissions enabled. Those attempts provide no complete model parity result.
 The exact cause of the remaining model drift has not been established.
+
+There are concrete precision differences in the pinned source:
+
+- [Vulkan matrix selection](https://github.com/ggml-org/llama.cpp/blob/7fe450e19305b828c199d602c23a8337aaa1f03b/ggml/src/ggml-vulkan/ggml-vulkan.cpp#L6097)
+  forces F32 activations into an F16 input path for cooperative matrices with quantized weights.
+  Disabling those matrices changes the path and reduces, but does not eliminate, the measured drift.
+- [Vulkan activation quantization](https://github.com/ggml-org/llama.cpp/blob/7fe450e19305b828c199d602c23a8337aaa1f03b/ggml/src/ggml-vulkan/vulkan-shaders/quantize_q8_1.comp#L114)
+  stores its scale and sum as `f16vec2`; disabling F16 computation does not change this storage format.
+- [CUDA's MMQ layout](https://github.com/ggml-org/llama.cpp/blob/7fe450e19305b828c199d602c23a8337aaa1f03b/ggml/src/ggml-cuda/mmq.cuh#L59)
+  selects four FP32 activation scales for Q8_0, and
+  [the quantizer](https://github.com/ggml-org/llama.cpp/blob/7fe450e19305b828c199d602c23a8337aaa1f03b/ggml/src/ggml-cuda/quantize.cu#L550)
+  writes those scales without the F16 conversion.
+
+These differences identify possible sources of drift. They do not prove that changing scale
+storage alone will make the entire model pass. No numerical backend patch has been validated.
 
 ## Reproduction
 
@@ -155,6 +217,9 @@ export without modifying their contents.
 
 ## Gate status
 
-The requested CUDA-to-Arc comparison is **pending** the exact CUDA fixture and metadata.
-No numerical correction has met that gate. Same-backend parity passes and latency measurements
-must not be used to claim that Vulkan is ready for the repository's cross-backend requirements.
+The requested CUDA-to-Arc comparison is complete for the stock Vulkan build and **fails**.
+No tested setting meets the gate and no numerical backend correction has been validated.
+Further work on activation representation or kernel precision would require backend changes
+and a new validation cycle; Ollaya currently distributes the pinned upstream binaries.
+Same-backend parity passes and latency measurements must not be used to claim that Vulkan
+is ready for the repository's cross-backend requirements.
