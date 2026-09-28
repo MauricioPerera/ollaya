@@ -218,8 +218,9 @@ function Section({
 // the same 2,000 questions. Latency: median of 15 warm five-question requests (the triage preset on
 // the hero's message) through the HTTP API on an RTX 4090, each model in its shipped precision;
 // Jev's is the hosted API's median request in third-party benchmarks, network included.
-// laya:typed-decisions (0.766) is left out: it was fine-tuned on this dataset.
-const scoreboard: { tag: string; acc: number; ms: number; pick?: boolean }[] = [
+// laya:typed-decisions (0.766) is left out: it was fine-tuned on this dataset. clm's latency is a new
+// message whose five questions are already cached (a repeated request takes under a millisecond).
+const scoreboard: { tag: string; acc: number; ms: number; pick?: boolean; note?: string }[] = [
   { tag: 'winnow:e4b', acc: 0.722, ms: 89, pick: true },
   { tag: 'kev:9b', acc: 0.722, ms: 498 },
   { tag: 'winnow:12b', acc: 0.702, ms: 131 },
@@ -233,6 +234,7 @@ const scoreboard: { tag: string; acc: number; ms: number; pick?: boolean }[] = [
   { tag: 'kev:0.8b', acc: 0.46, ms: 128 },
   { tag: 'von', acc: 0.447, ms: 23 },
   { tag: 'laya:en', acc: 0.361, ms: 10 },
+  { tag: 'clm:8b', acc: 0.357, ms: 149, note: 'questions cached' },
 ]
 const JEV = { acc: 0.738, text: '236–276 ms' }
 const ACC_SCALE = 0.8
@@ -301,7 +303,7 @@ function Fast() {
           <ul class="contents" role="list">
             <ScoreRow label="TypeSafe Jev" note="hosted API" acc={JEV.acc} latency={JEV.text} muted />
             {scoreboard.map((r) => (
-              <ScoreRow label={r.tag} acc={r.acc} latency={msText(r.ms)} pick={r.pick} />
+              <ScoreRow label={r.tag} note={r.note} acc={r.acc} latency={msText(r.ms)} pick={r.pick} />
             ))}
           </ul>
           <span></span>
@@ -321,7 +323,8 @@ function Fast() {
           Accuracy: the typed-decisions test split (400 states, 2,000 questions), argmax against the majority label,
           measured by Ollaya for each model; Jev's from Winnow's benchmark report on the same questions.{' '}
           <span class="font-mono">laya:typed-decisions</span> scores 0.766 but was fine-tuned on this dataset, so it is
-          left out. Latency: median of a five-question request through the HTTP API on an NVIDIA RTX 4090; Jev: median
+          left out. <span class="font-mono">clm</span> caches questions and options: its latency is a new message whose
+          questions are cached. Latency: median of a five-question request through the HTTP API on an NVIDIA RTX 4090; Jev: median
           request of the hosted API in third-party benchmarks (
           <a href="https://github.com/AbdelStark/jev-benchmarks" class={textLink}>
             AbdelStark/jev-benchmarks

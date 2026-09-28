@@ -74,6 +74,7 @@ pub const LAYOUTS: &[&str] = &[
     "qwen3guard-gen-v1",
     "von-option-marker-v1",
     "decision-endpoint-v1",
+    "clm-v1",
 ];
 
 /// The layout a `decision` layer declares.
@@ -115,6 +116,9 @@ pub fn load(
             files, device, threads,
         )?)),
         "decision-endpoint-v1" => Ok(Box::new(crate::decision::DecisionModel::load_files(
+            files, device, threads,
+        )?)),
+        "clm-v1" => Ok(Box::new(crate::clm::ClmModel::load_files(
             files, device, threads,
         )?)),
         other => Err(Error::Model(format!(

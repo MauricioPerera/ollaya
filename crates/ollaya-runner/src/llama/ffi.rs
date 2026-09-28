@@ -331,6 +331,28 @@ fn set_dll_directory(dir: &Path) {
     }
 }
 
+/// Load `lib` so that Windows resolves its own dependencies from its directory first
+/// (`LOAD_WITH_ALTERED_SEARCH_PATH`). ggml then loads it again with `LoadLibraryW`, which finds
+/// the module already loaded. A failure is left to that second load, which reports it.
+#[cfg(windows)]
+pub fn preload_beside(lib: &Path) {
+    use std::os::windows::ffi::OsStrExt;
+    const LOAD_WITH_ALTERED_SEARCH_PATH: u32 = 0x0000_0008;
+    #[link(name = "kernel32")]
+    unsafe extern "system" {
+        fn LoadLibraryExW(path: *const u16, file: *mut c_void, flags: u32) -> *mut c_void;
+    }
+    let wide: Vec<u16> = lib.as_os_str().encode_wide().chain([0]).collect();
+    // SAFETY: a NUL-terminated wide string; the module stays loaded for the process's life.
+    unsafe {
+        LoadLibraryExW(
+            wide.as_ptr(),
+            std::ptr::null_mut(),
+            LOAD_WITH_ALTERED_SEARCH_PATH,
+        );
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::mem::{offset_of, size_of};

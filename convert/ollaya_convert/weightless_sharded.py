@@ -129,7 +129,8 @@ def torchzip_source(location, path, **meta) -> Source:
             records.append((off, info.file_size, f.read(info.file_size)))
     for key, t in flat.items():
         dt = str(t.dtype).removeprefix("torch.")
-        if dt not in TORCH_DTYPES or not t.is_contiguous() or t.storage_offset() != 0:
+        # A 0-d tensor (CLM's logit_scale) is a constant, never a graph weight.
+        if t.dim() == 0 or dt not in TORCH_DTYPES or not t.is_contiguous() or t.storage_offset() != 0:
             continue
         data = t.contiguous().view(torch.uint8).numpy().tobytes() if dt != "bfloat16" else \
             t.view(torch.int16).numpy().tobytes()

@@ -93,6 +93,7 @@ numbers: [ollaya.dev/search](https://ollaya.dev/search).
 | `gliclass` | Knowledgator's instruction-following zero-shot classifier (DeBERTa-v3-large) |
 | `von` | Victor Hugo Panisa's Von 1.1 (ModernBERT-large): every option scored at its own marker, 8k-token context |
 | `winnow` | EldanRing's Winnow-12B, the larger sibling of `winnow:e4b`: 0.702 on typed-decisions |
+| `clm` | Contrastive-LM's CLM-v0.1-8B: the Qwen3-8B encoder and two projection heads score options by similarity, with questions and options cached. 0.357 on typed-decisions; built for agent, game and tool-calling states |
 | `jevk5` | alibiserikbay's JevK5 v0.3, a Qwen3.5-4B fine-tune run from the author's Q8_0 GGUF on llama.cpp, up to 16 options |
 
 Browse them at [ollaya.dev/search](https://ollaya.dev/search). Laya tags ending in

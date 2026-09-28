@@ -5,6 +5,9 @@ match to ~1e-5), in the same metrics as the llm-logits demo, for a like-for-like
     KEV_SRC=... uv run --with peft==0.21.0 --with pydantic==2.12.5 \
         python -m ollaya_convert.families.llm_common.eval_refs kev kev-0.8b out/kev-0.8b --run RUN --base BASE
 
+    CLM_SRC=... uv run --with requests python -m ollaya_convert.families.llm_common.eval_refs clm clm-8b out/clm-8b \
+        --base BASE --head HEAD.pt
+
 Writes <model_dir>/typed-decisions-quality.json (as shipped = the model's calibration.json, plus the
 cross-fitted per-type temperatures) and typed-decisions-logits.jsonl.
 """
@@ -21,12 +24,13 @@ from . import cases, quality
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("family", choices=["decider", "kev"])
+    ap.add_argument("family", choices=["decider", "kev", "clm"])
     ap.add_argument("model")
     ap.add_argument("model_dir")
     ap.add_argument("--root", default=None)
     ap.add_argument("--run", default=None)
     ap.add_argument("--base", default=None)
+    ap.add_argument("--head", default=None, help="clm: the projection-head checkpoint")
     ap.add_argument("--device", default="cuda")
     ap.add_argument("--td-limit", type=int, default=400)
     a = ap.parse_args()
@@ -46,6 +50,16 @@ def main():
             rows, plan = lay.encode(state, questions)
             logits = ref.forward(d, items)
             return {it["qid"]: lay.option_logits(it, logits) for it in plan}
+    elif a.family == "clm":
+        from ..clm import ref
+
+        r = ref.Reference(a.base, a.head, device=a.device)
+
+        def scorer(state, questions):
+            try:
+                return {qid: lg for qid, lg in r.answer(state, questions)[1].items()}
+            except ValueError:   # a text over the model's 2,048 tokens: no answer, as the runtime
+                return {}
     else:
         from ..kev import ref
 

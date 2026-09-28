@@ -49,10 +49,15 @@ pub async fn client() -> Result<Client> {
     )
 }
 
-/// Spawn `ollaya serve` detached from this terminal, logging to `~/.ollaya/logs/server.log`.
+/// Spawn `ollaya serve` detached from this terminal, logging to `server.log` in `OLLAYA_LOG_DIR`
+/// (default `~/.ollaya/logs`). Its stdout and stderr go there, so the variable is not passed on:
+/// the server would otherwise open the same file a second time and write every line twice.
 fn start_server() -> Result<PathBuf> {
     let exe = std::env::current_exe().context("locating the ollaya executable")?;
-    let dir = home().join("logs");
+    let dir = std::env::var_os("OLLAYA_LOG_DIR")
+        .filter(|v| !v.is_empty())
+        .map(PathBuf::from)
+        .unwrap_or_else(|| home().join("logs"));
     std::fs::create_dir_all(&dir).with_context(|| format!("creating {}", dir.display()))?;
     let path = dir.join("server.log");
     let log = std::fs::OpenOptions::new()
@@ -62,6 +67,7 @@ fn start_server() -> Result<PathBuf> {
         .with_context(|| format!("opening {}", path.display()))?;
     let mut cmd = std::process::Command::new(exe);
     cmd.arg("serve")
+        .env_remove("OLLAYA_LOG_DIR")
         .stdin(std::process::Stdio::null())
         .stdout(log.try_clone()?)
         .stderr(log);

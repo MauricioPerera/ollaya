@@ -7,6 +7,7 @@
 
 pub mod answer;
 pub mod calibration;
+pub mod clm;
 pub mod decider;
 pub mod decision;
 pub mod gliclass;

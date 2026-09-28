@@ -32,6 +32,8 @@ pub struct ServerConfig {
     pub api_key: Option<String>,
     /// `OLLAYA_ORIGINS`: browser origins allowed on top of the local defaults.
     pub origins: Vec<String>,
+    /// `OLLAYA_LOG_DIR`: when set, the daemon logs to `<dir>/server.log` instead of stderr.
+    pub log_dir: Option<PathBuf>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -146,6 +148,7 @@ impl ServerConfig {
                         .collect()
                 })
                 .unwrap_or_default(),
+            log_dir: var("OLLAYA_LOG_DIR").map(PathBuf::from),
         })
     }
 }
@@ -173,6 +176,7 @@ mod tests {
         assert_eq!(c.load_timeout, Duration::from_secs(300));
         assert_eq!(c.device, "auto");
         assert!(c.api_key.is_none() && c.origins.is_empty());
+        assert!(c.log_dir.is_none());
     }
 
     #[test]
@@ -190,6 +194,7 @@ mod tests {
                 "OLLAYA_ORIGINS",
                 "https://*.example.com, chrome-extension://*",
             ),
+            ("OLLAYA_LOG_DIR", "/var/log/ollaya"),
         ])
         .unwrap();
         assert_eq!(c.host.bind_addr(), "0.0.0.0:9000");
@@ -200,6 +205,7 @@ mod tests {
         assert_eq!(c.device, "cuda:1");
         assert_eq!(c.api_key.as_deref(), Some("secret"));
         assert_eq!(c.origins, ["https://*.example.com", "chrome-extension://*"]);
+        assert_eq!(c.log_dir, Some(PathBuf::from("/var/log/ollaya")));
     }
 
     #[test]

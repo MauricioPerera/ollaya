@@ -118,14 +118,15 @@ export function DownloadPage({ origin }: { origin: string }) {
             <Step title="Run a model">
               <CodeBlock code="ollaya run winnow:e4b" />
               <Note>
-                The recommended model: close to Jev's accuracy, in about 90 ms on an NVIDIA GPU (an 8 GB download).
-                Without a GPU, <code class="font-mono">ollaya run laya</code> answers in a fraction of a second on the CPU.
+                The recommended model: close to Jev's accuracy, in about 90 ms on an NVIDIA GPU with 10 GB or more (an 8 GB
+                download). Otherwise, <code class="font-mono">ollaya run laya</code> answers in a fraction of a second, on the
+                CPU too.
               </Note>
             </Step>
             <Requirements
               items={[
                 'x86-64 or ARM64 with glibc 2.38 or newer: Ubuntu 24.04, Debian 13, Fedora 39, RHEL 10 or newer.',
-                'Runs on the CPU. An NVIDIA GPU is optional: driver R525 or newer, on x86-64 (CUDA 13 from R580, CUDA 12 before).',
+                'Runs on the CPU. An NVIDIA GPU is optional: driver R525 or newer, on x86-64 (CUDA 13 from R580, CUDA 12 before and for GTX 10-series and Volta cards).',
               ]}
             />
             <DesktopApp
@@ -161,14 +162,15 @@ export function DownloadPage({ origin }: { origin: string }) {
             <Step title="Run a model">
               <CodeBlock code="ollaya run winnow:e4b" />
               <Note>
-                The recommended model: close to Jev's accuracy, in about 90 ms on an NVIDIA GPU (an 8 GB download).
-                Without a GPU, <code class="font-mono">ollaya run laya</code> answers in a fraction of a second on the CPU.
+                The recommended model: close to Jev's accuracy, in about 90 ms on an NVIDIA GPU with 10 GB or more (an 8 GB
+                download). Otherwise, <code class="font-mono">ollaya run laya</code> answers in a fraction of a second, on the
+                CPU too.
               </Note>
             </Step>
             <Requirements
               items={[
                 'Windows 10 or 11 on a 64-bit x86 PC. Runs on the CPU.',
-                'An NVIDIA GPU is optional: driver R527 or newer (CUDA 13 from R580, CUDA 12 before). The command line uses it; the desktop app runs on the CPU.',
+                'An NVIDIA GPU is optional: driver R527 or newer (CUDA 13 from R580, CUDA 12 before and for GTX 10-series and Volta cards). The command line uses it; the desktop app runs on the CPU.',
                 <>
                   WSL 2 with the Linux installer works too. The server in WSL answers Windows programs at{' '}
                   <code class="font-mono">localhost:{LOCAL_PORT}</code>.
@@ -204,7 +206,7 @@ export function DownloadPage({ origin }: { origin: string }) {
               <CodeBlock code={`docker run -d --name ollaya --gpus=all ${port} ${volume} ${DOCKER_IMAGE}:cuda`} />
               <Note>
                 Needs the NVIDIA Container Toolkit and a host driver with CUDA 13 support (R580 or newer). For drivers
-                with CUDA 12 (R525 to R575), use <code class="font-mono">:cuda12</code>.
+                with CUDA 12 (R525 to R575), or a GTX 10-series or Volta GPU, use <code class="font-mono">:cuda12</code>.
               </Note>
             </Step>
             <Step title="Run a model">

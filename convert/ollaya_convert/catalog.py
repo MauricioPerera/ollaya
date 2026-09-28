@@ -205,6 +205,34 @@ CATALOG = {
                   "per model. The token ids and answer-slot positions are identical, and so is the "
                   "decision on every question. Probabilities are within 6.3e-6, on CPU and CUDA.",
     },
+    "clm": {
+        "namespace": "library",
+        "model": "clm",
+        "family": "clm",
+        "author": "Contrastive-LM (projection heads) and the Qwen team (Qwen3-8B encoder)",
+        "license": "Apache-2.0",
+        "license_text": ("CLM-v0.1-8B by Contrastive-LM (https://huggingface.co/Contrastive-LM/CLM-v0.1-8B), "
+                         "state and action projection heads: Apache-2.0.\n"
+                         "Encoder: Qwen3-8B by the Qwen team (https://huggingface.co/Qwen/Qwen3-8B), Apache-2.0.\n"
+                         "Licensed under the Apache License, Version 2.0.\n\n") + LICENSE_APACHE,
+        "tags": {
+            "8b": dict(_wl("clm-8b", "Contrastive-LM/CLM-v0.1-8B", "e939398d4556fcd9400c76fa8c5a513202f42b0a",
+                           "Contrastive decision model: the Qwen3-8B encoder embeds the state and each option, and "
+                           "two small heads score every option by its similarity to the state. Repeated options "
+                           "and questions are cached.",
+                           "8.2B", 2048, ["en"], wl_dir=os.path.join(OUT, "clm-8b"),
+                           weights={**{"model-%05d-of-00005.safetensors" % i:
+                                       ("Qwen/Qwen3-8B", "b968826d9c46dd6066d109eabc6255188de91218",
+                                        "model-%05d-of-00005.safetensors" % i) for i in range(1, 6)},
+                                    "CLM_v0.1-8B.pt": "CLM_v0.1-8B.pt"}),
+                       tokenizer=("Qwen/Qwen3-8B", "b968826d9c46dd6066d109eabc6255188de91218", "tokenizer.json")),
+        },
+        "aliases": {"latest": "8b"},
+        "parity": "Ollaya's Rust runtime matches the reference (upstream clm.schema and heads, the Qwen3-8B "
+                  "encoder in fp32 on its BF16 weights) on 480 questions from 117 requests, on CPU and CUDA: the "
+                  "same state and option texts and token ids, the same rejections, the same decision on every "
+                  "question, option logits within 1.3e-4 and probabilities within 2.9e-5.",
+    },
     "kev": {
         "namespace": "library",
         "model": "kev",

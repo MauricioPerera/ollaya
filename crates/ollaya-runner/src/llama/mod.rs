@@ -218,6 +218,10 @@ fn api(libs: &Libraries, want_gpu: bool) -> Result<&'static Api, Error> {
                 (api.ggml_backend_load_all_from_path)(dir.as_ptr());
             }
             if want_gpu && let Some(cuda) = &libs.cuda {
+                // Windows: its CUDA libraries sit next to it in the pack, which is not the
+                // application's directory for tools such as `ollaya llama-devices`.
+                #[cfg(windows)]
+                ffi::preload_beside(cuda);
                 let path = cpath(cuda)?;
                 if (api.ggml_backend_load)(path.as_ptr()).is_null() {
                     tracing::warn!("could not load {} (see the llama.cpp log)", cuda.display());

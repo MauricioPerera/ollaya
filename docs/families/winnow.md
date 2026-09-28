@@ -123,14 +123,17 @@ The runner must match every decision, with option logits within 1e-3. Measured o
 | e4b Q8_0 | CUDA, RTX 4090 | 505 | 505/505 | 1.29e-5 | 3.0e-6 |
 | e4b Q8_0 | CPU, x86-64 Linux | 505 | 505/505 | 1.14e-5 | 2.9e-6 |
 | e4b Q8_0 | CPU, Windows x86-64 (against `llama-server.exe` win-cpu) | 15 | 15/15 | 7.6e-6 | 1.1e-6 |
+| e4b Q8_0 | CUDA, RTX 4090, Windows 11 (`ggml-cuda.dll` in the 0.7.4 CUDA pack; 2026-09-28) | 505 | 505/505 | 1.29e-5 | 3.0e-6 |
 
 - **Windows.** The golden replay on Windows stopped on a text-encoding error in the Python tool
   (cp1252), so the native Windows check covered only the first 3 requests.
 - **Author's server.** e4b against winnow-inference's own server on the same requests: in its reference
   mode all 503 decisions agree (probability difference p99 3.0e-6, max 0.0028); in its default mode
   501 of 503 agree (p99 0.030, max 0.052).
-- **Not run.** Metal and the Apple CPU, linux-arm64, 12b on the CPU, and llama.cpp with CUDA on
-  Windows.
+- **Vulkan (not shipped).** llama.cpp's Vulkan backend on the same RTX 4090 (Windows, `win-vulkan-x64`
+  of the same build): 501 of 505 decisions, option logits within 0.32, probabilities within 0.055, so it
+  fails the gate (1e-3 on logits, every decision the same) and Ollaya does not use it (#27).
+- **Not run.** Metal and the Apple CPU, linux-arm64, and 12b on the CPU.
 - **Typed-decisions (measured here).** All 400 states, 2,000 decisions, argmax against the majority
   label: 12b 0.702 (ECE 0.155 at T 1, the shipped value), e4b 0.722 (ECE 0.022 with the shipped T
   1.2574, 0.060 at T 1).

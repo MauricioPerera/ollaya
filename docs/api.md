@@ -1553,6 +1553,8 @@ These are the variables that change API behaviour.
 | `OLLAYA_LOAD_TIMEOUT` | `5m` | Load deadline before `500 MODEL_LOAD_FAILED` |
 | `OLLAYA_MODELS` | `~/.ollaya/models` | Model store |
 | `OLLAYA_REGISTRY` | `ollaya.dev` | Default registry host in names |
+| `OLLAYA_LOG` | `info` | Log levels, a [tracing filter](https://docs.rs/tracing-subscriber/latest/tracing_subscriber/filter/struct.EnvFilter.html): `debug` logs every request with its status and duration |
+| `OLLAYA_LOG_DIR` | unset | Log to `<dir>/server.log` instead of stderr (created if missing; appended, never rotated) |
 
 ## 16. Verification checklist
 

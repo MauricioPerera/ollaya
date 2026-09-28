@@ -154,6 +154,10 @@ jobs:
           7z x -bd -bso0 -o"$root" dist/ollaya-windows-amd64-cuda.zip
           "$root/bin/ollaya.exe" ps
           ls -l "$root"/lib/ollaya/cuda_v13/ollaya-runner-*.exe
+          # llama.cpp's CUDA backend for GGUF models, and every DLL it imports that is not the
+          # driver's, the system's or ggml-base.dll (loaded from lib/ollaya/llama first).
+          test -f "$root/lib/ollaya/cuda_v13/ggml-cuda.dll"
+          test -f "$root/lib/ollaya/cuda_v13/cublas64_13.dll"
           "$root/bin/ollaya.exe" stop
           # The CUDA 12 pack on its own, in a second tree.
           root12=$RUNNER_TEMP/ollaya-smoke12
@@ -170,9 +174,9 @@ jobs:
         env:
           FEATURES: ${{ matrix.features }}
         run: |
-          cargo build --release --locked -p ollaya-runner --example parity --example bench ${FEATURES:+--features "$FEATURES"}
+          cargo build --release --locked -p ollaya-runner --example parity --example parity_llama --example bench ${FEATURES:+--features "$FEATURES"}
           mkdir -p tools
-          cp target/release/examples/parity.exe target/release/examples/bench.exe tools/
+          cp target/release/examples/parity.exe target/release/examples/parity_llama.exe target/release/examples/bench.exe tools/
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: github.event_name == 'workflow_dispatch' && matrix.platform == 'windows-amd64'
         with:

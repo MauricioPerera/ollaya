@@ -35,6 +35,7 @@ Open decision models from these families. See [Models](/search), which compares 
 - **`decision`** from the vLLM Semantic Router contributors: `decision:eos`, Decision 1.0 Eos, a fully fine-tuned Qwen3.5-0.8B with an endpoint head that scores every option at its last token, calibrated, with rows of up to 16,384 tokens.
 - **`qwen3guard`** from the Qwen team: a safety guard in 119 languages. It answers its own built-in questions (safe, controversial or unsafe, and the unsafe category), so you send it only the text.
 - **`von`** from Victor Hugo Panisa: Von 1.1 on ModernBERT-large, which scores every option at its own marker in one pass and reads states of up to 8,192 tokens.
+- **`clm`** from Contrastive-LM: CLM-v0.1-8B, which embeds the state and each option with Qwen3-8B and picks the option closest to the state through two trained heads. Questions and options are cached, so repeated ones are nearly free. It scores 0.357 on typed decisions; its authors built it for agent, game and tool-calling states.
 - **`jevk5`** from alibiserikbay: JevK5 v0.3, a Qwen3.5-4B fine-tune published as GGUF files. Ollaya runs the author's 4B Q8_0 file on llama.cpp, with up to 16 options per question.
 
 ## Where do the weights come from?
@@ -95,4 +96,4 @@ For an install without root (in `~/.local`), delete `~/.local/bin/ollaya`, `~/.l
 
 ## What is the license?
 
-Ollaya is Apache-2.0. Models carry their own licenses: `laya`, `decider`, `kev`, `decision`, `qwen3guard`, `gliclass`, `von`, `winnow`, `jevk5` and `nli:modernbert-large` are Apache-2.0, and `nli:deberta-v3-large` is MIT.
+Ollaya is Apache-2.0. Models carry their own licenses: `laya`, `decider`, `kev`, `decision`, `qwen3guard`, `gliclass`, `von`, `winnow`, `jevk5`, `clm` and `nli:modernbert-large` are Apache-2.0, and `nli:deberta-v3-large` is MIT.

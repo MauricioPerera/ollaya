@@ -177,7 +177,9 @@ def package_wl(spec, tag, v, blobs):
     data, stats = graph_from_wl(v["wl_dir"], oids)
     print("  %s:%s fp32 graph %.1f MB %s" % (spec["model"], tag, len(data) / 2**20, stats))
     graph = blobs.put(MEDIA["graph"], data, {"org.ollaya.precision": "fp32"})
-    tokenizer = upstream(MEDIA["tokenizer"], repo, commit, v["tokenizer"])
+    # The tokenizer comes from the model's repo, or from another one (a base model's) as a triple.
+    t = v["tokenizer"]
+    tokenizer = upstream(MEDIA["tokenizer"], *(t if isinstance(t, tuple) else (repo, commit, t)))
     decision_bytes = open(os.path.join(v["wl_dir"], "decision.json"), "rb").read()
     decision = blobs.put(MEDIA["decision"], decision_bytes)
     calibration = blobs.put(MEDIA["calibration"], open(os.path.join(v["wl_dir"], "calibration.json"), "rb").read())

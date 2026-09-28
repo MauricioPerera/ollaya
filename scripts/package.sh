@@ -237,9 +237,9 @@ cuda_pack() {
     M=$1
     CUDA_PACK=cuda_v$M
     case $M in
-        13) CUDA_NAME=ollaya-$PLATFORM-cuda CUFFT=12 LLAMA_CUDA_KIND=linux-amd64-cuda
+        13) CUDA_NAME=ollaya-$PLATFORM-cuda CUFFT=12 LLAMA_CUDA_KIND=${PLATFORM}-cuda
             CUDA_REQUIREMENTS=$ROOT/packaging/cuda-requirements.txt ;;
-        12) CUDA_NAME=ollaya-$PLATFORM-cuda12 CUFFT=11 LLAMA_CUDA_KIND=linux-amd64-cuda12
+        12) CUDA_NAME=ollaya-$PLATFORM-cuda12 CUFFT=11 LLAMA_CUDA_KIND=${PLATFORM}-cuda12
             CUDA_REQUIREMENTS=$ROOT/packaging/cuda12-requirements.txt ;;
         *) die "no CUDA $M pack" ;;
     esac
@@ -559,12 +559,18 @@ stage_cuda() {
     builtins=
     for f in "$lib"/*nvrtc-builtins*; do [ ! -f "$f" ] || builtins=$f; done
     [ -n "$builtins" ] || die "the NVRTC builtins library was not found in the NVIDIA wheels"
-    if [ "$PLATFORM" = linux-amd64 ]; then
-        # llama.cpp's CUDA backend, which finds libcudart and libcublas next to it. The Windows
-        # pack has none yet: GGUF models run on the CPU there.
+    # llama.cpp's CUDA backend (GGUF models), which finds the CUDA libraries next to it. The
+    # Windows CUDA 12 pack has none: ggml-org's CUDA 12.4 build would take the zip past GitHub's
+    # 2 GiB limit per release asset, so GGUF models use Vulkan or the CPU there.
+    LLAMA_CUDA=
+    case $LLAMA_CUDA_KIND in
+        linux-amd64-cuda | linux-amd64-cuda12) LLAMA_CUDA=libggml-cuda.so ;;
+        windows-amd64-cuda) LLAMA_CUDA=ggml-cuda.dll ;;
+    esac
+    if [ -n "$LLAMA_CUDA" ]; then
         OLLAYA_CACHE=$CACHE "$ROOT/scripts/llama-cpp.sh" "$LLAMA_CUDA_KIND" "$WORK/llama-$CUDA_PACK" \
             "$doc/llama.cpp-THIRD_PARTY_NOTICES"
-        cp "$WORK/llama-$CUDA_PACK/libggml-cuda.so" "$lib/libggml-cuda.so"
+        cp "$WORK/llama-$CUDA_PACK/$LLAMA_CUDA" "$lib/$LLAMA_CUDA"
     fi
     # FILES.sha256 fingerprints the libraries themselves (the archive's own checksum changes with
     # every release's timestamps). The installers compare it with the installed copy and skip the
@@ -604,9 +610,9 @@ NVIDIA GPUs, and only by Ollaya.
 EOF
         printf '    %-44s %s\n' File 'PyPI package'
         LC_ALL=C sort "$WORK/cuda-libs" | awk -F '\t' '{ printf "    %-44s %s\n", $1, $2 }'
-        if [ "$PLATFORM" = linux-amd64 ]; then
-            printf '\n3. llama.cpp %s CUDA backend (MIT), libggml-cuda.so: see llama.cpp-THIRD_PARTY_NOTICES.\n' \
-                "$LLAMA_CPP_BUILD"
+        if [ -n "$LLAMA_CUDA" ]; then
+            printf '\n3. llama.cpp %s CUDA backend (MIT), %s: see llama.cpp-THIRD_PARTY_NOTICES.\n' \
+                "$LLAMA_CPP_BUILD" "$LLAMA_CUDA"
         fi
     } >"$doc/THIRD_PARTY_NOTICES"
     say "Staged $name ($(du -sk "$lib" | awk '{ printf "%.0f MiB", $1 / 1024 }') of libraries)"

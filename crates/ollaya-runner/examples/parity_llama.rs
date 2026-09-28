@@ -8,7 +8,8 @@
 //!
 //! `<model-dir>` holds `decision.json`, `calibration.json` and `model.gguf` (the author's GGUF, or
 //! a link to it). llama.cpp is loaded from `$OLLAYA_LIBRARY_PATH/llama`, and its CUDA backend from
-//! `$OLLAYA_LIBRARY_PATH/cuda_v13/libggml-cuda.so` or, failing that, `cuda_v12/libggml-cuda.so`:
+//! `$OLLAYA_LIBRARY_PATH/cuda_v13/libggml-cuda.so` or, failing that, `cuda_v12/libggml-cuda.so`
+//! (`ggml-cuda.dll` on Windows):
 //! the install layout.
 //!
 //! Every case is encoded first:
@@ -106,7 +107,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .map(PathBuf::from)
         .ok_or("set OLLAYA_LIBRARY_PATH to an install's lib/ollaya")?;
     let cuda = ["cuda_v13", "cuda_v12"]
-        .map(|pack| lib.join(pack).join("libggml-cuda.so"))
+        .map(|pack| lib.join(pack).join(ollaya_runner::llama::CUDA_BACKEND))
         .into_iter()
         .find(|p| p.is_file());
     let libs = Libraries {

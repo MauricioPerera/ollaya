@@ -102,6 +102,20 @@ const overlays: Record<string, ModelOverlay> = {
       '0.8b': { summary: 'Qwen3.5-0.8B base, 0.506 on typed decisions: smaller and faster.' },
     },
   },
+  clm: {
+    stats: { tag: 'clm:8b', accuracy: 0.357, latencyMs: 149, latencyNote: 'a new message, questions cached' },
+    title: 'CLM',
+    description:
+      'Contrastive decision model by Contrastive-LM: the Qwen3-8B encoder embeds the state and every option, and two trained heads pick the option closest to the state. Repeated questions and options are cached.',
+    publisher: { name: 'Contrastive-LM', url: 'https://huggingface.co/Contrastive-LM' },
+    capabilities: ['decision', 'embedding'],
+    keywords: ['clm', 'contrastive', 'embedding', 'qwen', 'qwen3', 'reranker', 'verifier', 'agents', 'decision', 'typesafe', 'jev', 'system one'],
+    rank: 11,
+    tags: {
+      latest: { summary: 'Same as clm:8b.' },
+      '8b': { summary: 'CLM-v0.1-8B on Qwen3-8B, 0.357 on typed decisions; built for agent, game and tool-calling states. Needs a 20 GB GPU.' },
+    },
+  },
   kev: {
     stats: { tag: 'kev:4b', accuracy: 0.669, latencyMs: 354 },
     title: 'Kev',

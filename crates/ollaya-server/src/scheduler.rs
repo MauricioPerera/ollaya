@@ -50,6 +50,14 @@ pub struct SchedulerConfig {
     pub cpu_exe: Option<PathBuf>,
 }
 
+impl SchedulerConfig {
+    /// Whether runners start with a GPU pack (see [`crate::launch`]): a GPU `argv[0]`, the pack's
+    /// runner, or the pack's library environment.
+    pub fn has_gpu_pack(&self) -> bool {
+        self.arg0.is_some() || self.cpu_exe.is_some() || !self.env.is_empty()
+    }
+}
+
 /// Which runner an ONNX model starts from, given the configured device (see [`Scheduler::spawn`]).
 #[derive(Debug, PartialEq)]
 enum Plan {
@@ -496,7 +504,16 @@ impl Scheduler {
             async move {
                 let mut lines = BufReader::new(stderr).lines();
                 while let Ok(Some(l)) = lines.next_line().await {
-                    tracing::debug!(runner = %name, "{l}");
+                    // Runners before 0.7.4 colour their log even into a pipe.
+                    let l = strip_ansi(&l);
+                    // A runner's own warnings (a GPU that failed, a fallback to the CPU) are the
+                    // only record of why a model runs where it does, so they stay visible at the
+                    // default level; the rest of its log is debug output.
+                    if runner_warns(&l) {
+                        tracing::warn!(runner = %name, "{l}");
+                    } else {
+                        tracing::debug!(runner = %name, "{l}");
+                    }
                     if !l.trim().is_empty() {
                         let mut tail = tail.lock().unwrap();
                         if tail.len() == STDERR_TAIL {
@@ -535,6 +552,13 @@ impl Scheduler {
                 model.name
             )));
         };
+        if launch.device == "auto" && hello.device == "cpu" && self.config.has_gpu_pack() {
+            tracing::warn!(
+                "{} runs on the CPU although a GPU pack is installed: no usable GPU for it (see \
+                 the runner's warnings above, or set OLLAYA_DEVICE=cuda to see the error)",
+                model.name
+            );
+        }
         Ok(Runner {
             name: model.name.to_string(),
             digest: model.digest.clone(),
@@ -557,12 +581,57 @@ impl Scheduler {
     }
 }
 
+/// Whether a line of a runner's log is a warning or an error (`tracing`'s format: timestamp, level,
+/// target, message), whatever its colouring.
+fn runner_warns(line: &str) -> bool {
+    strip_ansi(line)
+        .split_whitespace()
+        .nth(1)
+        .is_some_and(|level| level == "WARN" || level == "ERROR")
+}
+
+/// `line` without ANSI colour sequences (`ESC [ ... m`).
+fn strip_ansi(line: &str) -> String {
+    let mut out = String::with_capacity(line.len());
+    let mut chars = line.chars();
+    while let Some(c) = chars.next() {
+        if c == '\x1b' {
+            for c in chars.by_ref() {
+                if c.is_ascii_alphabetic() {
+                    break;
+                }
+            }
+        } else {
+            out.push(c);
+        }
+    }
+    out
+}
+
 /// Non-empty stderr lines of a runner kept to explain a failed load.
 const STDERR_TAIL: usize = 5;
 
 #[cfg(test)]
 mod tests {
-    use super::{Plan, plan};
+    use super::{Plan, plan, runner_warns};
+
+    #[test]
+    fn runner_warnings_are_recognised_with_or_without_colour() {
+        assert!(runner_warns(
+            "2026-09-28T00:34:25.166279Z  WARN ollaya_runner::server: GPU 0 failed its first request, using CPU"
+        ));
+        assert!(runner_warns(
+            "\x1b[2m2026-09-28T00:34:25Z\x1b[0m \x1b[33m WARN\x1b[0m \x1b[2mollaya_runner::server\x1b[0m: x"
+        ));
+        assert!(runner_warns(
+            "2026-09-28T00:34:25Z ERROR ollaya_runner: boom"
+        ));
+        assert!(!runner_warns(
+            "2026-09-28T00:34:25Z  INFO ollaya_runner::server: loaded"
+        ));
+        assert!(!runner_warns("a line that merely mentions WARN"));
+        assert!(!runner_warns(""));
+    }
 
     #[test]
     fn onnx_models_on_the_cpu_start_from_the_static_build() {
