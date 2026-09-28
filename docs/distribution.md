@@ -189,6 +189,8 @@ sha256 (llama.cpp v0.5.0, build b11146):
   backend discovery. With `OLLAYA_DEVICE=auto`, GGUF models prefer CUDA when its optional pack is
   installed, then a discrete Vulkan GPU, then an integrated Vulkan GPU. If loading or warm-up
   fails, they fall back to the CPU. `OLLAYA_DEVICE=vulkan` (or `vulkan:<n>`) selects it explicitly.
+  Vulkan remains unvalidated against the CUDA parity gate; successful loading does not establish
+  matching decisions across backends. See the [Arc 140T measurements](measurements/intel-arc-140t-parity.md).
   ONNX models still use CPU or CUDA; DirectML is not registered.
 - **Build check.** The runner refuses a llama.cpp whose version or default parameter structs
   differ from the ones `crates/ollaya-runner/src/llama/ffi.rs` was written for.
