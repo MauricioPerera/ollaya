@@ -299,6 +299,50 @@ final gate failure, or a validated fix. The remaining investigation needs to sep
 activation quantization from accumulation and compare this isolated operation with CUDA.
 The [diagnostic data](intel-arc-140t-localization-results.json) records the hashes and results.
 
+## Activation quantization versus accumulation
+
+The local CPU's actual activation quantizer matches the host ties-to-even calculation
+for all 883,200 captured values. Ties-to-even and ties-away quantization differ for
+524 values in that input. Dequantizing the Q8_0 weights to F32 and disabling F16 and
+cooperative matrices reduces CPU/Vulkan raw-output difference to 0.0005493164,
+compared with 0.234026 for the quantized operation.
+
+A read-only private diagnostic captured the GPU's quantized activation buffer after
+the isolated operation. It preserves the result bytes exactly. The FP32 reciprocal
+and explicit-rounding variant has 192 quantized values differing by one from the
+host source-formula calculation. All mismatches lie within 7.62939453125e-6 of a
+halfway value; scale differences reach 2.384185791015625e-7.
+Using the GPU's actual quantized bytes in a Float64 mathematical dot reference
+leaves only 0.0001070001 maximum accumulation error. This separates a quantization
+contribution from the much smaller accumulation error for this measured operation.
+
+A private refinement uses an FMA residual to correct each division. On this one
+captured input, it eliminates all 192 quantized-value differences and makes the
+FP32 scales identical to the host calculation. Its accumulation error remains
+0.0001072667 and the operation tests pass 24/24 supported cases. This is a measured
+local improvement, not a claim of correctly rounded division for every possible input.
+
+The refined build still fails the selected CUDA questions:
+
+| Settings on the private refined build | Decisions, selected 15 | Max option-logit difference |
+| --- | ---: | ---: |
+| No cooperative matrices | 13/15 | 0.1731 |
+| No cooperative matrices or fusion | 14/15 | 0.1202 |
+| No cooperative matrices or fusion, forced MMVQ | 14/15 | 0.1269 |
+
+Matching the host calculation does not establish matching the stock CUDA implementation:
+the pinned CUDA build configuration uses `-use_fast_math`, and an actual same-input
+CUDA measurement is still needed. The [measurement data](intel-arc-140t-quantization-results.json)
+records this distinction and the private-build hashes.
+
+A [standalone same-input reproduction](https://gist.github.com/MauricioPerera/722b4878ada7d8836e52d64760ce601a)
+contains 64 captured input rows, hashes, measured CPU/Vulkan outputs, and a small
+ggml program that can load the stock CUDA backend without source changes. It extracts
+the public pinned model's Q8_0 weight tensor and verifies its hash, rather than embedding
+model weights. The Windows CPU replay exactly reproduces the corresponding full-capture
+rows; the published data bytes were downloaded and verified against their hashes.
+This packet requests an isolated CUDA diagnostic, not a replacement acceptance fixture.
+
 ## Gate status
 
 The requested CUDA-to-Arc comparison is complete for the stock Vulkan build and **fails**.
