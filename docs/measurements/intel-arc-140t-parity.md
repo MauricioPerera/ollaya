@@ -18,6 +18,14 @@ Same-backend Vulkan parity passes for both measured models.
   The native parity runs used the stock libraries, not the local diagnostic build described below.
 - Python reference encoder: laya 0.3.7. The default 40 typed-decisions rows and the full edge-case set were used.
 
+After these measurements, current main v0.7.5 (`32acb6d2ea13f616b1e11d9dfb8260b305106847`)
+was merged without conflicts in `067bfbd5949ec830b3dd9ed575894c9dbd75fe3b`.
+It changes neither the llama runner source nor `parity_llama`, the Winnow registry pin,
+or the pinned llama.cpp distribution script. The five llama tests, four server-configuration
+tests and formatting check pass, and the release parity example rebuilds. A stock-Vulkan
+recheck on the four selected CUDA cases reproduces 12/15 decisions and max option-logit
+error 0.3261. This recheck is not a new full 505-question result.
+
 | Model | Pinned author GGUF | Context | Plan | Temperature |
 | --- | --- | ---: | --- | ---: |
 | Winnow-E4B | `EldanRing/Winnow-E4B`, revision `734302fe5fbfeb3f21a7ece62653c9539be4aaf3`, `gguf/Winnow-E4B-Q8_0.gguf` | 8192, full sliding-window cache | prefix | 1.2574172017327816 |
@@ -342,6 +350,9 @@ the public pinned model's Q8_0 weight tensor and verifies its hash, rather than 
 model weights. The Windows CPU replay exactly reproduces the corresponding full-capture
 rows; the published data bytes were downloaded and verified against their hashes.
 This packet requests an isolated CUDA diagnostic, not a replacement acceptance fixture.
+The [maintainer request](https://github.com/ollaya-dev/ollaya/pull/27#issuecomment-5867333315)
+asks for the actual CUDA output and build identity. No CUDA execution of this isolated
+packet has been obtained yet; host-formula agreement cannot resolve that missing evidence.
 
 ## Gate status
 

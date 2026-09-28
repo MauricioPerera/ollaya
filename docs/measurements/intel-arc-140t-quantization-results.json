@@ -103,6 +103,7 @@
   },
   "gpu_quantization_before_refinement": {
     "scope": "Actual GPU activation bytes and Float64 quantized dot reference; no CUDA execution",
+    "host_division_matches_float64_then_float32": true,
     "observer_preserves_output_bytes": true,
     "gpu_vs_correctly_rounded_host_formula_quantized_values": 192,
     "gpu_vs_host_scale_max_error": 2.384185791015625e-07,
@@ -113,6 +114,7 @@
   },
   "gpu_quantization_after_refinement": {
     "scope": "Actual GPU activation bytes and Float64 quantized dot reference; no CUDA execution",
+    "host_division_matches_float64_then_float32": true,
     "observer_preserves_output_bytes": true,
     "gpu_vs_correctly_rounded_host_formula_quantized_values": 0,
     "gpu_vs_host_scale_max_error": 0.0,
@@ -192,5 +194,21 @@
       "probability_max": 0.01616,
       "exit_code": 1
     }
-  ]
+  ],
+  "main075_stock_selected_baseline": {
+    "revision": "067bfbd5949ec830b3dd9ed575894c9dbd75fe3b",
+    "runner_sha256": "2da125366d000a963f09c8051d8f639e22a2730fded1d9cf2388a944c6f22df1",
+    "scope": "4 selected cases, 15 questions after merging main v0.7.5; not a new full 505-question run",
+    "runs": [
+      {
+        "mode": "default",
+        "exit_code": 1,
+        "summary": "4 cases (0 rejected), 15 questions on vulkan:0 in 11.5s: decisions 12/15 (80.00%), option logits max 3.261e-1 p99 3.261e-1, probabilities max 1.785e-2 p99 1.785e-2",
+        "decisions_agree": 12,
+        "questions": 15,
+        "logit_max": 0.3261,
+        "probability_max": 0.01785
+      }
+    ]
+  }
 }
