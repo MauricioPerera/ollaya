@@ -25,6 +25,9 @@ or the pinned llama.cpp distribution script. The five llama tests, four server-c
 tests and formatting check pass, and the release parity example rebuilds. A stock-Vulkan
 recheck on the four selected CUDA cases reproduces 12/15 decisions and max option-logit
 error 0.3261. This recheck is not a new full 505-question result.
+After the merge, `cargo test --workspace --locked`,
+`cargo clippy --workspace --all-targets --locked -- -D warnings`,
+`cargo build --release --locked -p ollaya`, and the site's `npm run typecheck` also pass.
 
 | Model | Pinned author GGUF | Context | Plan | Temperature |
 | --- | --- | ---: | --- | ---: |
