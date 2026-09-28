@@ -1,6 +1,6 @@
 # Intel Arc 140T parity measurements
 
-Measured on 2026-09-27 for [PR #27](https://github.com/ollaya-dev/ollaya/pull/27).
+Measured on 2026-09-27 and 2026-09-28 for [PR #27](https://github.com/ollaya-dev/ollaya/pull/27).
 The full Winnow-E4B comparison against the reviewer's CUDA reference **fails** the gate.
 Same-backend Vulkan parity passes for both measured models.
 
@@ -215,11 +215,66 @@ in their metadata. Before this correction they used the filename `goldens-cpu.js
 the server and metadata selected Vulkan. The measured Vulkan fixtures above were renamed after
 export without modifying their contents.
 
+## Private FP32 activation-scale experiment (2026-09-28)
+
+A local experiment used the same b11146 source commit, MSVC 19.51 and shaderc 2026.3.
+A control build without arithmetic changes reproduced the stock results on the four
+selected CUDA regression requests (15 questions). Both builds had
+`GGML_VULKAN_CHECK_RESULTS=OFF`, `GGML_BACKEND_DL=ON` and `GGML_NATIVE=OFF`.
+
+The experiment changed only Q8_0 MMQ activation scales: four FP32 scales replace
+four FP16 scale/sum pairs in the same 144-byte block. The producer, shader storage,
+shared-memory cache and register cache preserve FP32. A separate quantization pipeline
+identifies the new representation for buffer reuse. MMVQ and formats requiring the
+activation sum retain their original representation. Cooperative matrices were disabled
+to exercise MMQ instead of the F16 activation path.
+
+| Build and settings | Decisions vs CUDA, selected 15 | Max option-logit difference | Max probability difference |
+| --- | ---: | ---: | ---: |
+| Local control, no cooperative matrices | 13/15 | 0.1517 | 0.02258 |
+| FP32 scales, no cooperative matrices | 14/15 | 0.1337 | 0.01088 |
+| Local control, no cooperative matrices, forced MMVQ | 12/15 | 0.1414 | 0.02262 |
+| FP32 scales, no cooperative matrices, forced MMVQ | 14/15 | 0.1428 | 0.01103 |
+
+Both experimental variants still change `td/customer_service_000080/churn_risk`.
+These are selected counterexamples, not a new full 505-question result. They already
+disprove acceptance of the experimental build under the unchanged CUDA gate, so the
+experiment was not expanded to all 505 questions.
+
+The existing operation tests passed 24/24 supported Q8_0 and Q4_1 cases in each build:
+
+```powershell
+$env:GGML_VK_DISABLE_COOPMAT = '1'
+$env:GGML_VK_DISABLE_COOPMAT2 = '1'
+test-backend-ops.exe test -b Vulkan0 -o MUL_MAT `
+  -p 'type_a=(q8_0|q4_1),type_b=f32,m=16,n=(1|8),k=(256|4096),'
+```
+
+The same ten-request, 50-question JevK5 CPU diagnostic fixture was also replayed on
+the local control and experimental Vulkan builds, with cooperative matrices disabled:
+
+| JevK5 build | Decisions vs CPU, selected 50 | Max option-logit difference | Max probability difference |
+| --- | ---: | ---: | ---: |
+| Local control | 47/50 | 0.2072 | 0.02863 |
+| FP32 scales | 48/50 | 0.1716 | 0.03094 |
+
+This second-model comparison remains a CPU diagnostic; it cannot establish CUDA parity.
+The [measurement data](intel-arc-140t-fp32-results.json) records the settings,
+fixture hashes, runner hash, Vulkan library hashes and result summaries for both models.
+
+The operation check uses the upstream test tolerance, not Ollaya's final-logit gate.
+The FP32 experiment improves selected decision agreement, but does not uniformly reduce
+maximum logit error and does not isolate the remaining error to a specific operator.
+It establishes that changing these scales alone is insufficient. It does not prove
+that cross-backend parity is impossible. The private patch and binaries are not included
+in this PR or the distribution; these results do not validate a numerical correction.
+
 ## Gate status
 
 The requested CUDA-to-Arc comparison is complete for the stock Vulkan build and **fails**.
 No tested setting meets the gate and no numerical backend correction has been validated.
-Further work on activation representation or kernel precision would require backend changes
-and a new validation cycle; Ollaya currently distributes the pinned upstream binaries.
+The private FP32 activation-scale experiment also fails on known CUDA counterexamples.
+Further kernel work would need to isolate the remaining differences and complete a new
+validation cycle; Ollaya currently distributes the pinned upstream binaries.
 Same-backend parity passes and latency measurements must not be used to claim that Vulkan
 is ready for the repository's cross-backend requirements.
