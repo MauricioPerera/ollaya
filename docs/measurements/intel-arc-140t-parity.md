@@ -269,6 +269,36 @@ It establishes that changing these scales alone is insufficient. It does not pro
 that cross-backend parity is impossible. The private patch and binaries are not included
 in this PR or the distribution; these results do not validate a numerical correction.
 
+## Further quantization and isolated-operation diagnostics
+
+Two additional private variants used CUDA's scalar calculation order
+`d_inv = 127 / amax`, `d = 1 / d_inv`, with FP32 scales. With cooperative matrices
+disabled, the initial rounding implementation gives 13/15 selected CUDA decisions
+and max logit error 0.1488; forcing MMVQ gives 13/15 and 0.1505. Explicitly rounding
+halfway values away from zero, without a potentially rounded `abs(x) + 0.5` intermediate,
+gives 14/15 and max error 0.2428. The latter passes the same 24 supported operation
+tests. None passes the selected counterexamples, so no new full-gate run was claimed.
+
+A separate program using llama.cpp's public evaluation callback captured intermediate
+tensors for the 433-token `customer_service_000080/churn_risk` question, with its
+original 345-token prefix. This instrumentation changes graph scheduling/fusion;
+the captured runs are diagnostics, not substitutes for an uninstrumented CUDA gate.
+
+For the first attention multiplication `Qcur-0`, the local CPU and Vulkan weights are
+byte-identical. Prefix inputs differ by at most 6.103515625e-5, while outputs differ
+by at most 0.1219133. A standalone replay then used **identical captured CPU inputs
+and weights** on both backends. CPU replay reproduces its captured result exactly.
+The maximum raw-tensor error against that CPU replay is 0.234026 for control Vulkan,
+0.232921 for the original FP32-scale experiment, and 0.246365 for the reciprocal
+and explicit-rounding variant.
+
+These raw intermediate-tensor errors are different metrics from normalized option
+logits. They isolate a CPU/Vulkan multiplication difference even with identical
+inputs; they do not establish CUDA's output for that input, the sole cause of the
+final gate failure, or a validated fix. The remaining investigation needs to separate
+activation quantization from accumulation and compare this isolated operation with CUDA.
+The [diagnostic data](intel-arc-140t-localization-results.json) records the hashes and results.
+
 ## Gate status
 
 The requested CUDA-to-Arc comparison is complete for the stock Vulkan build and **fails**.
