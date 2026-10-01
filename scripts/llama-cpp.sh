@@ -8,6 +8,8 @@
 #   linux-amd64-cuda  libggml-cuda.so, the CUDA backend (for the CUDA pack, lib/ollaya/cuda_v13)
 #   linux-amd64-cuda12  libggml-cuda.so built with CUDA 12.8 (for the CUDA 12 pack, lib/ollaya/cuda_v12)
 #   linux-arm64       libllama, libggml, libggml-base and the CPU backends
+#   linux-arm64-cuda  libggml-cuda.so built with CUDA 13.4 for aarch64 (DGX Spark / GB10, Grace);
+#                     not in a release pack yet: staged for parity checks on such machines (#32)
 #   windows-amd64     the same libraries plus the Vulkan backend (CPU remains available)
 #   windows-amd64-cuda  ggml-cuda.dll, the CUDA 13.4 backend (for the Windows CUDA pack, lib/ollaya/cuda_v13)
 #   darwin-arm64      libllama and libggml with its CPU, BLAS, Metal and RPC backends
@@ -61,6 +63,8 @@ case $KIND in
     linux-amd64-cuda12)
         ASSET=$b-ubuntu-cuda-12.8-x64.tar.gz SUM=c2ab9e19838513ff69d1af8d999ad717dd3c7ee4714ac04c7ed5ab9077c50e4e ;;
     linux-arm64) ASSET=$b-ubuntu-arm64.tar.gz SUM=4aeda6fe68831547e49b7fa87607383ca5352b3d72ca5f70d52ed265f58c131f ;;
+    linux-arm64-cuda)
+        ASSET=$b-ubuntu-cuda-13.4-arm64.tar.gz SUM=4e00496ab6cdee9c00afb11de3cb9d10f9da7e17147d8ed14ca3af05209b400f ;;
     darwin-arm64) ASSET=$b-macos-arm64.tar.gz SUM=1ad3f9eff80edb9dbef4259ad564d1720612ef7eea48fa4afed0e54f5f3d5711 ;;
     windows-amd64) ASSET=$b-win-vulkan-x64.zip SUM=55a378aa095b466979d85075234f66d7655c7a7483222af0c006c0e55b4d7bd6 ;;
     windows-amd64-cuda)
@@ -99,8 +103,8 @@ src=$WORK
 # wanted NAME: the file belongs to this kind.
 wanted() {
     case $KIND:$1 in
-        linux-amd64-cuda*:libggml-cuda.so | windows-amd64-cuda:ggml-cuda.dll) return 0 ;;
-        linux-amd64-cuda*:* | windows-amd64-cuda:*) return 1 ;;
+        linux-*-cuda*:libggml-cuda.so | windows-amd64-cuda:ggml-cuda.dll) return 0 ;;
+        linux-*-cuda*:* | windows-amd64-cuda:*) return 1 ;;
         *:libggml-cuda.so) return 1 ;;
         # libllama-common, libllama-server-impl and the other tools' libraries, and multimodal.
         *:libllama-* | *:libmtmd*) return 1 ;;
@@ -138,7 +142,7 @@ for f in "$src"/*; do
     fi
 done
 case $KIND in
-    linux-amd64-cuda*) need=libggml-cuda.so ;;
+    linux-*-cuda*) need=libggml-cuda.so ;;
     windows-amd64-cuda) need=ggml-cuda.dll ;;
     linux-*) need=libllama.so.0 ;;
     darwin-*) need=libllama.0.dylib ;;

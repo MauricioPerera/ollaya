@@ -18,7 +18,7 @@ pub trait Engine: Send + Sync {
     fn run(&self, state: &Value, questions: &Questions) -> Result<Output, Error>;
 
     /// Answer a request whose questions are the JSON the daemon sent. Engines whose layouts
-    /// validate the definitions themselves (llama.cpp's `winnow-v1`, `llm-logits-v1`, `jevk5-v1`)
+    /// validate the definitions themselves (llama.cpp's `winnow-v1`, `llm-logits-v1`, `jevk5-v1`, `jebadiah-v1`)
     /// override it; the rest parse the typed questions first.
     fn run_json(&self, state: &Value, questions: &Value) -> Result<Output, Error> {
         let questions = ollaya_decision::parse_questions(questions)?;
@@ -95,6 +95,8 @@ pub const LAYOUTS: &[&str] = &[
     "decision-endpoint-v1",
     "clm-v1",
     "decider-vision-v1",
+    "nimble-codes-v1",
+    "jeeves-markers-v1",
 ];
 
 /// The layout a `decision` layer declares.
@@ -144,6 +146,12 @@ pub fn load(
         "decider-vision-v1" => Ok(Box::new(
             crate::decider_vision::VisionDeciderModel::load_files(files, device, threads)?,
         )),
+        "nimble-codes-v1" => Ok(Box::new(crate::nimble::NimbleModel::load_files(
+            files, device, threads,
+        )?)),
+        "jeeves-markers-v1" => Ok(Box::new(crate::jeeves::JeevesModel::load_files(
+            files, device, threads,
+        )?)),
         other => Err(Error::Model(format!(
             "this version of ollaya cannot run layout {other:?} (supported: {}); upgrade ollaya",
             LAYOUTS.join(", ")

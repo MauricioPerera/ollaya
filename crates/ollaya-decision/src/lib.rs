@@ -8,13 +8,17 @@
 pub mod answer;
 pub mod calibration;
 pub mod clm;
+pub mod cygnet;
 pub mod decider;
 pub mod decision;
 pub mod gliclass;
+pub mod jebadiah;
+pub mod jeeves;
 pub mod jevk5;
 pub mod kev;
 pub mod layout;
 pub mod llm_logits;
+pub mod nimble;
 pub mod nli;
 mod printable;
 pub mod pyjson;

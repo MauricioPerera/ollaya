@@ -18,6 +18,24 @@ The [desktop app](/download) for macOS, Windows and Linux; `curl -fsSL {{SITE_OR
 
 Ollaya borrows Ollama's experience (one binary, `pull`, `run`, `serve`, Modelfiles, a local REST API with the same conventions) and applies it to decision models instead of generative language models. It is an independent project, not affiliated with Ollama.
 
+## Ollama runs decision models now. How is Ollaya different?
+
+Ollama 0.35 (September 2026) added `/v1/systemone` for two decoder models, Bespoke Labs' Nimble and Together AI's Tev1. Both projects follow TypeSafe's wire format, and for decoder models both read the answer labels' next-token scores. Ollaya runs Nimble too, since 0.8.0. This comparison is with Ollama 0.35:
+
+| | Ollaya | Ollama 0.35 |
+|---|---|---|
+| Models | 15 families: encoders (`laya`, `nli`, `gliclass`, `von`) and decoders (`winnow`, `kev`, `decider`, `nimble`, `jeb`, `jeeves`, `cygnet` and more) | Nimble (9B) and Tev1 (4B, 0.8B) |
+| Encoders | Read every question in one forward pass. `laya:en` answers five questions in 8 to 10 ms on an RTX 4090 | Not supported |
+| Probabilities | Calibrated with each model's fitted temperatures, which you can refit on your own data in a [Modelfile](/docs/modelfile#calibration) | Softmax of the raw label scores. Ollama documents `confidence` as uncalibrated |
+| Limits | TypeSafe's: 1 to 256 questions, 2 to 255 options, 2 to 10 score levels | 1 to 64 questions, 2 to 26 options and score levels, a 64 KiB request body |
+| API | TypeSafe's `/v1/systemone`, `/v1/decisions` and `/v1/models`; `/api/decide` with routing and timings; an MCP server | `/v1/systemone` |
+| Routers | `laya` picks the English or the multilingual model for each request | None |
+| Weights | Pulled unmodified from the author's Hugging Face repository, pinned to a commit and checked by sha256 | Converted to GGUF and served from Ollama's registry |
+
+**Measured side by side.** On one RTX 5090, over Bespoke Labs' public benchmark (3,880 human-labeled questions from 13 datasets, scored with Bespoke's own code): `winnow:12b` on Ollaya scores 0.773 at 60 ms per question, against 0.749 at 210 ms for Nimble on Ollama, Ollama's best. On the same Nimble weights the accuracy is the same (0.748 and 0.749), the calibration error is 5.5 times lower on Ollaya (0.022 against 0.122, because Ollaya applies the author's temperature), and Ollama is faster (210 against 310 ms: it runs a Q8_0 GGUF where Ollaya computes in fp32). The [home page](/#vs-ollama) has the chart.
+
+Ollama's advantages are real too. Tev1 is there and not here yet (Together AI has not published a license for its weights), and if you already use Ollama for language models, one daemon covers both. The two run side by side: Ollama on port 11434, Ollaya on 11435.
+
 ## How is it related to TypeSafe?
 
 TypeSafe's closed Jev model created the decision-model category. Ollaya serves open models behind a TypeSafe-compatible API: the official TypeSafe Python SDK 0.7.1 works unchanged with `TYPESAFE_BASE_URL=http://localhost:11435` and any API key. Ollaya is not affiliated with TypeSafe. See [TypeSafe compatibility](/docs/typesafe-compatibility).
@@ -56,7 +74,7 @@ A decision is a single forward pass. Measured end to end through the HTTP API on
 
 ## Do I need a GPU?
 
-No. Ollaya runs on the CPU, and on x86-64 Linux and Windows uses an NVIDIA GPU with driver R525 or newer when one is present (CUDA 13 libraries from R580 on, CUDA 12 before that). The install scripts download the CUDA libraries only when they find a GPU. GGUF models such as `winnow` run on llama.cpp; on Windows they can also use a Vulkan GPU, including Intel Arc, from the base install and desktop app. Apple silicon uses Metal. An Intel Arc smoke test with `jevk5:4b` matched the CPU's decisions on one five-question request; broader decision parity still needs validation. ONNX models still use CPU or CUDA on Windows. GGUF models are large language models, so a GPU makes a much bigger difference for them than for the encoder models: see each model's page for measured speeds.
+No. Ollaya runs on the CPU, and on x86-64 Linux and Windows uses an NVIDIA GPU with driver R525 or newer when one is present (CUDA 13 libraries from R580 on, CUDA 12 before that). The install scripts download the CUDA libraries only when they find a GPU. The desktop app runs models on the CPU. GGUF models such as `winnow` run on llama.cpp, which also uses the GPU of Apple silicon Macs (Metal) and, on Windows, a GPU of any vendor through Vulkan, from the base install and the desktop app; their parity has been checked on CUDA and the x86-64 CPU, not yet on Metal. They are large language models, so a GPU makes a much bigger difference for them than for the encoder models: see each model's page for measured speeds. On an RTX 30, 40 or 50 series card GGUF models need nothing more. On older or data-center cards (GTX 10 series, V100, T4, A100, H100) llama.cpp's CUDA libraries carry code the driver compiles on first use, which takes a newer driver: R570 or newer with the CUDA 12 libraries, and a driver for CUDA 13.4 or newer with the CUDA 13 libraries. With an older driver Ollaya runs GGUF models on the CPU and logs why; `ollaya llama-devices` shows each GPU's compute capability and whether the kernels run on it.
 
 ## Which platforms are supported?
 
@@ -81,6 +99,10 @@ With temperature scaling per question type and number of options, shipped with e
 ## Is there an MCP server or an agent skill?
 
 Both. `ollaya mcp` serves the local models to Claude Code, Claude Desktop, Cursor and other MCP clients (`claude mcp add ollaya -- ollaya mcp`), and the `ollaya-decisions` skill teaches agents when and how to use them. See [Agents](/docs/agents).
+
+## How do I update it?
+
+Run `ollaya update`. It checks the latest release and, when there is a newer one, runs the install script again into the same place, which keeps your models and the service settings. `ollaya update --check` only tells you whether an update exists. The desktop app updates as a whole: install the new version from [Download](/download). In Docker, pull the new image.
 
 ## How do I uninstall it?
 

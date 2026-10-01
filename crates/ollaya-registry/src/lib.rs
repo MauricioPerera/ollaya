@@ -27,6 +27,13 @@ pub enum Error {
     /// This client cannot run the model; found from its config, before any layer downloads.
     #[error("{0}")]
     Unsupported(String),
+    /// No HTTPS client: the system has no CA certificates (a minimal container without
+    /// `ca-certificates`). Only pulls need one.
+    #[error(
+        "cannot download over HTTPS: {0}. Install the system CA certificates (for example \
+         `apt-get install ca-certificates`)"
+    )]
+    NoHttps(String),
     #[error(transparent)]
     Http(#[from] reqwest::Error),
     #[error(transparent)]

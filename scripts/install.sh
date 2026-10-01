@@ -115,8 +115,11 @@ main() {
         while [ ! -e "$d" ]; do d=$(dirname "$d"); done
         [ -w "$d" ]
     }
+    # The prefix itself too: the install stages in $PREFIX/.ollaya-install.*. On a Mac with
+    # Homebrew, /usr/local/bin and /usr/local/share are often the user's while /usr/local is
+    # root's (#31). lib/ollaya holds the CUDA pack on Linux and the MLX library on macOS.
     prefix_writable() {
-        writable "$1/bin" && writable "$1/share" && { [ "$OS" != Linux ] || writable "$1/lib"; }
+        writable "$1" && writable "$1/bin" && writable "$1/share" && writable "$1/lib"
     }
     get_sudo() {
         available sudo || return 1

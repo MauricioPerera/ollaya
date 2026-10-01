@@ -55,7 +55,7 @@ numbers: [ollaya.dev/search](https://ollaya.dev/search).
 - **Weights come from their authors.** Ollaya publishes only small ONNX graphs, about 3 MB each.
   These graphs read the original weight files (usually `model.safetensors`) from the author's
   Hugging Face repository, pinned to a commit and verified by sha256. Models whose authors publish
-  GGUF files (`winnow`, `jevk5`) run that file itself on llama.cpp. Ollaya never re-hosts weights.
+  GGUF files (`winnow`, `jevk5`, `jeb`) run that file itself on llama.cpp. Ollaya never re-hosts weights.
 - **For agents.** `ollaya mcp` serves the models to Claude Code, Claude Desktop, Cursor and other
   MCP clients (`claude mcp add ollaya -- ollaya mcp`), and the
   [`ollaya-decisions` skill](skills/ollaya-decisions/SKILL.md) teaches agents when and how to use
@@ -96,10 +96,18 @@ numbers: [ollaya.dev/search](https://ollaya.dev/search).
 | `winnow` | EldanRing's Winnow-12B, the larger sibling of `winnow:e4b`: 0.702 on typed-decisions |
 | `clm` | Contrastive-LM's CLM-v0.1-8B: the Qwen3-8B encoder and two projection heads score options by similarity, with questions and options cached. 0.357 on typed-decisions; built for agent, game and tool-calling states |
 | `jevk5` | alibiserikbay's JevK5 v0.3, a Qwen3.5-4B fine-tune run from the author's Q8_0 GGUF on llama.cpp, up to 16 options |
+| `nimble` | Bespoke Labs' Nimble v2: a LoRA on Qwen3.5-9B that reads the whole request as a JSON schema and scores option codes, with the author's temperature: 0.665 on typed-decisions, up to 255 options, ~2.3 s for five questions on an RTX 4090 |
+| `jeb`, `jeb:4b`, `jeb:27b` | Jason Brashear's Jebadiah (AINode): LoRAs merged into Qwen3.5 (9B by default, 4B) and Qwen3.8-27B, run from the authors' GGUF on llama.cpp with their per-type temperatures; `jeb:9b` answers five questions in 124 ms on an RTX 4090 |
+| `jeeves` | PostHog's Jeeves-9B without its reasoning chain: Qwen3.5-9B (LoRA merged) and a pointer head: 0.680 on typed-decisions with an ECE of 0.031, 838 ms for five questions on an RTX 4090 |
+| `cygnet` | blockbrain-ai's Cygnet: frozen Gemma 4 12B IT (Q8_0 GGUF) with a letter-readout prompt and temperature 3.4: 0.683 on typed-decisions, 202 ms for five questions on an RTX 4090 |
 
 Browse them at [ollaya.dev/search](https://ollaya.dev/search). Laya tags ending in
 `-fp32` or `-fp16` pin the precision. The derived files of every model are also published at
 [huggingface.co/ollaya-dev](https://huggingface.co/ollaya-dev).
+
+Ollama 0.35 also serves decision models: Nimble and Tev1, through the same TypeSafe wire format.
+[The FAQ](https://ollaya.dev/docs/faq#ollama-runs-decision-models-now-how-is-ollaya-different)
+compares the two projects.
 
 ## Install
 
@@ -150,8 +158,9 @@ MPS build from PyPI on Apple silicon Macs, where exports and parity run on the C
 Apache-2.0. Each model keeps its own license: `laya` (Convai Innovations), `decider` (Mapika),
 `kev` (Jared Palmer, on Qwen3.5 by the Qwen team), `decision` (the vLLM Semantic Router
 contributors, on Qwen3.5), `qwen3guard` (Qwen team), `gliclass` (Knowledgator), `von` (Victor Hugo
-Panisa), `winnow` (EldanRing, on Gemma 4 by Google DeepMind), `jevk5` (alibiserikbay, on Qwen3.5)
-and `nli:modernbert-large` are Apache-2.0, and `nli:deberta-v3-large` (Moritz Laurer) is MIT. llama.cpp, which Ollaya ships for
+Panisa), `winnow` (EldanRing, on Gemma 4 by Google DeepMind), `jevk5` (alibiserikbay, on Qwen3.5), `nimble`
+(Bespoke Labs, on Qwen3.5), `jeeves` (PostHog, on Qwen3.5), `jeb` (Jason Brashear, on Qwen3.5 and Qwen3.8), `cygnet` (Gemma 4 by Google
+DeepMind; the Cygnet recipe is MIT) and `nli:modernbert-large` are Apache-2.0, and `nli:deberta-v3-large` (Moritz Laurer) is MIT. llama.cpp, which Ollaya ships for
 GGUF models, is MIT.
 
 Ollaya is an independent project. It is not affiliated with or endorsed by Ollama or TypeSafe.

@@ -56,7 +56,9 @@ pub type RunCheck = Arc<dyn Fn(&ModelName, &ModelConfig) -> Result<(), String> +
 
 #[derive(Clone)]
 pub struct Puller {
-    http: reqwest::Client,
+    /// The HTTPS client, or why there is none: building it loads the system CA certificates,
+    /// which a host that only serves pulled models may not have. Only pulls need it.
+    http: Result<reqwest::Client, String>,
     store: Store,
     check: Option<RunCheck>,
 }
@@ -74,7 +76,12 @@ impl Puller {
             .user_agent(concat!("ollaya/", env!("CARGO_PKG_VERSION")))
             .connect_timeout(Duration::from_secs(20))
             .read_timeout(Duration::from_secs(60))
-            .build()?;
+            .build()
+            .map_err(|e| {
+                let e = std::error::Error::source(&e).map_or(e.to_string(), ToString::to_string);
+                tracing::warn!("pulls are unavailable: {e}");
+                e
+            });
         Ok(Puller {
             http,
             store,
@@ -92,9 +99,13 @@ impl Puller {
         &self.store
     }
 
+    fn http(&self) -> Result<&reqwest::Client, Error> {
+        self.http.as_ref().map_err(|e| Error::NoHttps(e.clone()))
+    }
+
     /// Fetch and parse a manifest without storing anything.
     pub async fn fetch_manifest(&self, name: &ModelName) -> Result<(Manifest, Vec<u8>), Error> {
-        let resp = self.http.get(name.manifest_url()).send().await?;
+        let resp = self.http()?.get(name.manifest_url()).send().await?;
         if resp.status() == reqwest::StatusCode::NOT_FOUND {
             return Err(Error::NotFound(name.to_string()));
         }
@@ -245,7 +256,7 @@ impl Puller {
         path: &Path,
         report: &(dyn Fn(u64) + Send + Sync),
     ) -> Result<u64, Error> {
-        let resp = self.http.get(url).send().await?.error_for_status()?;
+        let resp = self.http()?.get(url).send().await?.error_for_status()?;
         let mut file = tokio::fs::File::create(path).await?;
         let mut stream = resp.bytes_stream();
         let mut n = 0u64;
@@ -305,9 +316,10 @@ impl Puller {
             .filter(|(_, p)| p.completed < p.size)
             .map(|(i, p)| (i, p.offset, p.size))
             .collect();
+        let client = self.http()?.clone();
         let jobs = pending.into_iter().map(|(i, offset, psize)| {
             let counters = counters.clone();
-            let http = self.http.clone();
+            let http = client.clone();
             let (url, path) = (url.to_owned(), path.to_owned());
             async move { fetch_part(&http, &url, &path, offset, psize, &counters[i]).await }
         });

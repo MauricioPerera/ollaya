@@ -19,7 +19,7 @@ import time
 from types import SimpleNamespace
 
 from . import cases, quality
-from .export_llama import JevK5, LlmLogits, Winnow, engine_form, post_to
+from .export_llama import Cygnet, Jebadiah, JevK5, LlmLogits, Winnow, engine_form, post_to
 from .llama_server import LlamaServer
 from .plan import FixedPlan, server_args
 
@@ -44,7 +44,7 @@ def main():
     try:
         args = SimpleNamespace(upstream_commit=decision.get("upstream", {}).get("commit", ""),
                                assistant_prefix=decision.get("assistant_prefix", ""), n_ctx=llama["n_ctx"])
-        lay = {"winnow-v1": Winnow, "jevk5-v1": JevK5}.get(decision["layout"], LlmLogits)(srv, args)
+        lay = {"winnow-v1": Winnow, "jevk5-v1": JevK5, "jebadiah-v1": Jebadiah, "cygnet-v1": Cygnet}.get(decision["layout"], LlmLogits)(srv, args)
         plan = FixedPlan(post_to(srv.url))
 
         def scorer(state, questions):

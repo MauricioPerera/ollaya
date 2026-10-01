@@ -9,11 +9,13 @@ pub mod decider_vision;
 pub mod decision;
 pub mod engine;
 pub mod gliclass;
+pub mod jeeves;
 pub mod kev;
 pub mod llama;
 #[cfg(feature = "mlx")]
 pub mod mlx;
 pub mod net;
+pub mod nimble;
 pub mod nli;
 pub mod onnx;
 pub mod qwen3guard;

@@ -195,7 +195,7 @@ impl KevLayout {
 }
 
 /// `option_text(name, d)`: the name alone when `d` is missing, null or `""`.
-fn option_text(name: &str, description: Option<&Value>) -> String {
+pub(crate) fn option_text(name: &str, description: Option<&Value>) -> String {
     match description {
         None | Some(Value::Null) => name.to_owned(),
         Some(Value::String(s)) if s.is_empty() => name.to_owned(),

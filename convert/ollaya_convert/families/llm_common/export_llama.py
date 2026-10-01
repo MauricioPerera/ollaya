@@ -12,6 +12,10 @@ and goldens (prompt token ids and option logits through the fixed evaluation pla
         --server ... --gguf .../jevk5-4b-v0.3-Q8_0.gguf --slug 4b-q8_0 \
         --repo alibiserikbay/JevK5-GGUF --revision <sha> --file jevk5-4b-v0.3-Q8_0.gguf \
         --temperature 1.22 --n-ctx 16384
+    uv run python -m ollaya_convert.families.llm_common.export_llama jebadiah \
+        --server ... --gguf .../jebadiah-9b-v2-Q8_0.gguf --slug 9b-q8_0 \
+        --repo frontier-infra/jebadiah-9b-v2-GGUF --revision <sha> --file jebadiah-9b-v2-Q8_0.gguf \
+        --temperatures .../temperatures.json --n-ctx 4096
 
 Writes out/<layout>-<slug>/ (llm-logits-<slug>, winnow-<slug> or jevk5-<slug>):
   decision.json          layout, GGUF pin, template pieces / flags, label tables, llama-server settings
@@ -234,6 +238,116 @@ class JevK5:
         return n, False, rows
 
 
+class Jebadiah:
+    """jebadiah-v1: one prompt per question (AINode's renderer), the template pieces tokenized with
+    special parsing and the user message without it, evaluated as one cold pass (Qwen3.5's recurrent
+    layers). Labels are A..Z, AA, ... while each is one token; a prompt over the 2,048 tokens the
+    author serves with is rejected, never cut."""
+
+    def __init__(self, srv, a):
+        from ..jebadiah import ref
+        self.ref = ref
+        self.srv = srv
+        self.n_ctx = a.n_ctx
+        labels = []
+        for i in range(255):
+            s = ref.option_label(i)
+            ids = srv.tokenize(s, add_special=False, parse_special=False)
+            if len(ids) != 1 or srv.pieces(ids)[0] != s:
+                break
+            labels.append((s, ids[0]))
+        if len(labels) < 26:
+            raise SystemExit("only %d labels are single tokens in this GGUF" % len(labels))
+        self.labels = [i for _, i in labels]
+        # the author's extended alphabet for wider questions: A..Z, then every two-letter uppercase
+        # string that is one token, in alphabetical order
+        import string
+        extended = labels[:26]
+        for x in string.ascii_uppercase:
+            for y in string.ascii_uppercase:
+                ids = srv.tokenize(x + y, add_special=False, parse_special=False)
+                if len(ids) == 1 and srv.pieces(ids)[0] == x + y:
+                    extended.append((x + y, ids[0]))
+        self.extended = extended[:ref.MAX_OPTIONS_CAP]
+        self.decision = {
+            "family": "jebadiah", "layout": ref.LAYOUT,
+            "labels": {"strings": [s for s, _ in labels], "ids": self.labels},
+            "extended_labels": {"strings": [s for s, _ in self.extended], "ids": [i for _, i in self.extended]},
+            "max_prompt_tokens": ref.MAX_PROMPT_TOKENS,
+            "upstream": ref.UPSTREAM,
+        }
+        self.plan = "cold"
+
+    def encode(self, state, questions):
+        compiled = self.ref.compile_request(state, questions, len(self.labels), [s for s, _ in self.extended])
+        n = len(self.srv.tokenize(self.ref.serialize_state(state), add_special=False, parse_special=False))
+        rows = []
+        pre = self.srv.tokenize(self.ref.PRE, add_special=False, parse_special=True)
+        post = self.srv.tokenize(self.ref.POST, add_special=False, parse_special=True)
+        for qid, _, keys, user, wire, letters in compiled:
+            cands = [i for _, i in self.extended[:len(keys)]] if letters else self.labels[:len(keys)]
+            ids = pre + self.srv.tokenize(user, add_special=False, parse_special=False) + post
+            if len(ids) > self.ref.MAX_PROMPT_TOKENS:
+                raise self.ref.JebError("question %r: the prompt is %d tokens; this model reads at most %d"
+                                        % (qid, len(ids), self.ref.MAX_PROMPT_TOKENS))
+            rows.append((qid, ids, 0, cands, wire))
+        return n, False, rows
+
+
+class Cygnet:
+    """cygnet-v1: Gemma's chat template over Cygnet's system message and one user message per question,
+    the template pieces tokenized with special parsing and the messages without it, one cold pass per
+    question. Labels are A..Z; a prompt that does not fit the context is rejected."""
+
+    def __init__(self, srv, a):
+        from ..cygnet import ref
+        self.ref = ref
+        self.srv = srv
+        self.n_ctx = a.n_ctx
+        labels = []
+        for s in ref.LETTERS:
+            ids = srv.tokenize(s, add_special=False, parse_special=False)
+            if len(ids) != 1 or srv.pieces(ids)[0] != s:
+                raise SystemExit("label %r is not one token in this GGUF: %s" % (s, ids))
+            labels.append(ids[0])
+        self.labels = labels
+        tpl = srv.apply_template([{"role": "system", "content": "SYSTEM"}, {"role": "user", "content": "USER"}],
+                                 enable_thinking=False)
+        if tpl.count("SYSTEM") != 1 or tpl.count("USER") != 1 or tpl.index("SYSTEM") > tpl.index("USER"):
+            raise SystemExit("the chat template does not place the system and user messages verbatim, in order")
+        pre, rest = tpl.split("SYSTEM")
+        mid, post = rest.split("USER")
+        self.template = (pre, mid, post)
+        props = srv.props()
+        x = srv.tokenize("x", add_special=True)
+        self.add_bos = bool(props.get("bos_token")) and len(x) == 2
+        self.bos = x[0] if self.add_bos else None
+        self.decision = {
+            "family": "cygnet", "layout": ref.LAYOUT,
+            "template": {"pre": pre, "mid": mid, "post": post}, "add_bos": self.add_bos,
+            "labels": {"strings": list(ref.LETTERS), "ids": labels}, "max_options": ref.GROUP_SIZE,
+            "upstream": ref.UPSTREAM,
+        }
+        self.plan = "cold"
+
+    def encode(self, state, questions):
+        compiled = self.ref.compile_request(state, questions)
+        n = len(self.srv.tokenize(self.ref.state_text(state), add_special=False, parse_special=False))
+        tok = lambda t, special: self.srv.tokenize(t, add_special=False, parse_special=special)  # noqa: E731
+        pre, mid, post = (tok(x, True) for x in self.template)
+        system = tok(self.ref.SYSTEM, False)
+        rows = []
+        for qid, _, user, k in compiled:
+            ids = pre + system + mid + tok(user, False) + post
+            if self.add_bos and (not ids or ids[0] != self.bos):
+                ids = [self.bos] + ids
+            if len(ids) >= self.n_ctx:
+                raise self.ref.CygnetError("question %r: the prompt is %d tokens, the context holds %d"
+                                           % (qid, len(ids), self.n_ctx))
+            rows.append((qid, ids, 0, self.labels[:k], list(range(k))))
+        return n, False, rows
+
+
 def winnow_error_class(state, questions, labels, template):
     """The runtime's error class for a request compile() rejects: the first failing question decides.
     More options than the label table holds is 422 TOO_MANY_OPTIONS in Ollaya, anything else 400."""
@@ -255,6 +369,12 @@ def error_class(layout, lay, state, questions, e):
     if layout == "jevk5":
         from ..jevk5.ref import TooManyOptions
         return "too_many_options" if isinstance(e, TooManyOptions) else "invalid"
+    if layout == "cygnet":
+        from ..cygnet.ref import TooManyOptions as CygTooMany
+        return "too_many_options" if isinstance(e, CygTooMany) else "invalid"
+    if layout == "jebadiah":
+        from ..jebadiah.ref import TooManyOptions as JebTooMany
+        return "too_many_options" if isinstance(e, JebTooMany) else "invalid"
     return "too_many_options" if "exceed this model's" in str(e) else "invalid"
 
 
@@ -273,7 +393,7 @@ def server_version(binary):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("layout", choices=["llm-logits", "winnow", "jevk5"])
+    ap.add_argument("layout", choices=["llm-logits", "winnow", "jevk5", "jebadiah", "cygnet"])
     ap.add_argument("--server", required=True, help="the pinned llama-server build the runtime ships")
     ap.add_argument("--gguf", required=True)
     ap.add_argument("--slug", required=True)
@@ -283,6 +403,8 @@ def main():
     ap.add_argument("--calibration", default=None, help="llm-logits: fitted calibration.json (demo output)")
     ap.add_argument("--temperature", type=float, default=None,
                     help="winnow, jevk5: the author's fitted decision temperature (default 1.0)")
+    ap.add_argument("--temperatures", default=None,
+                    help="jebadiah: the author's temperatures.json ({temperatures: {choice, noul, score}})")
     ap.add_argument("--temperature-source", default="")
     ap.add_argument("--upstream-commit", default="6c2b3c04e248a319f2cb43832628eba03e55fe38",
                     help="winnow: the winnow-inference commit the model card pins")
@@ -303,7 +425,7 @@ def main():
                             log=os.path.join(out, "llama-server-%s.log" % device_class(a.device)), timeout=1800)
     try:
         props = srv.props()
-        lay = {"llm-logits": LlmLogits, "winnow": Winnow, "jevk5": JevK5}[a.layout](srv, a)
+        lay = {"llm-logits": LlmLogits, "winnow": Winnow, "jevk5": JevK5, "jebadiah": Jebadiah, "cygnet": Cygnet}[a.layout](srv, a)
         sha = sha256_file(a.gguf)
         decision = {"engine": "llama", **lay.decision}
         decision["gguf"] = {
@@ -320,6 +442,10 @@ def main():
             cal = json.load(open(a.calibration))
             cal = {"temperature": cal["temperature"], "temperature_by_options": cal.get("temperature_by_options", {}),
                    "temperature_range": [0.2, 40.0], "source": cal.get("source", "")}
+        elif a.temperatures:
+            t = json.load(open(a.temperatures))["temperatures"]
+            cal = {"temperature": [t["choice"], t["score"], t["noul"]], "temperature_by_options": {},
+                   "source": a.temperature_source or "the author's per-type temperatures (%s)" % os.path.basename(a.temperatures)}
         elif a.temperature is not None:
             cal = {"temperature": [a.temperature] * 3, "temperature_by_options": {},
                    "source": a.temperature_source or "the author's fitted decision temperature"}

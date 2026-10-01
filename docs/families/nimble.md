@@ -1,0 +1,89 @@
+# nimble (`nimble-codes-v1`)
+
+Bespoke Labs' **Bespoke-Nimble-9B-v2** (Apache-2.0) is a LoRA adapter (r=16, α=32) on
+**Qwen/Qwen3.5-9B** (Apache-2.0), trained on contrastive pairs to answer typed questions from the
+next-token logits of one-letter option codes. It never generates text. The repository ships the
+reference scorer (`serving_schema.py`, `extended_schema.py`, `parallel_schema.py`, `inference.py`) and
+the recommended temperature; the TypeSafe mapping is the author's `/v1/systemone` server
+([bespokelabsai/nimble](https://github.com/bespokelabsai/nimble) `nimble/serving/compiler.py`, with
+openjev-sglang's request models for the defaults).
+
+| Model | Checkpoint | Base | Temperature | Status in Ollaya |
+|---|---|---|---|---|
+| `bespokelabs/Bespoke-Nimble-9B-v2` | `4b8c04d1` (2026-09-23) | Qwen/Qwen3.5-9B @ `c2022362` (4 shards) | 2.179 | **converted, ONNX** (weights stay BF16 in memory) |
+
+## How it decides
+
+One chat row per question (upstream `prepare_prompts`). Every row carries the whole request; only the
+requested field at the end differs:
+
+```text
+row    = pre + safe_json({"context": serialize(state), "schema": fields})
+             + "\n\nRequested field: " + safe_json(qid) + post
+fields = [{"name": qid, "description": serialize(instructions),
+           "choices": [{"code": "A", "value": ..., "description": ...}, ...]}, ...]
+```
+
+- **TypeSafe mapping** (the author's compiler): `noul` becomes a boolean field with values
+  `[false, true]` and the descriptions of `criteria.false` and `criteria.true` (`"No"` and `"Yes"`
+  when absent); `choice` becomes an enum of the labels, described by their descriptions or, when null,
+  the label; `score` becomes an enum `"0".."n-1"` described by the levels.
+- **Serialization.** `serialize` is the string itself, or `json.dumps(ensure_ascii=False)` for any
+  other JSON. `safe_json` writes `<` and `>` as `<` and `>`, so user text cannot form a chat
+  control token; the row is tokenized whole with special tokens parsed, as upstream does.
+- **Template.** `pre` and `post` are Qwen3.5's chat template rendered around the user turn with the
+  training system prompt and `enable_thinking=False` (stored in `decision.json`). When any question has
+  more than 26 options, every row uses the serving extension: the system prompt says "short code"
+  instead of "one-letter code", and codes continue after `Z` with 229 two-letter codes (`AA`, `AB`, ...),
+  each one token at the answer boundary (`serving_config.json`).
+- **Readout.** The graph returns the next-token logits of all 255 code tokens at each row's last token;
+  a question reads its first k. Probabilities are `softmax(logits / 2.179)`, the author's recommended
+  temperature (`temperature_config.json`: fitted on the original Nimble-9B and transferred to v2).
+
+## The graph
+
+One graph (13.6 MB), weightless: `input_ids [rows, seq]` (right-padded to a multiple of 64) and
+`last_pos [rows]` → `cand_logits [rows, 255]`. It reuses the Qwen3.5 export
+(`llm_common/qwen35.py`); the LoRA is not merged (every adapted Linear runs `x·Wᵀ + 2·(x·Aᵀ)·Bᵀ`), so
+the base shards and `adapter_model.safetensors` stay byte for byte the authors'. The untied `lm_head` is
+read only at the 255 code rows. The vision tower and MTP tensors (348) are unused. `weights_in_memory`
+is `bf16`: about 18 GB.
+
+## Differences from upstream
+
+- **Precision.** Upstream serves in BF16 autocast; Ollaya computes in fp32 on the BF16 weights, as for
+  every Qwen3.5 model here. The goldens are upstream's code in fp32.
+- **Rejections.** As upstream: blank state, blank instructions or question ids, blank choice labels,
+  noul criteria with keys other than `"true"` and `"false"`, and a row over 8,192 tokens (422, never
+  truncated). `instructions` is required, as for every Ollaya model. Ollaya also accepts `choice`
+  criteria given as a list of labels, and non-string descriptions (serialized as JSON), which openjev's
+  strict models refuse.
+
+## Parity
+
+Goldens: `ollaya_convert.families.nimble.goldens` runs the author's code (serving_schema.prepare_prompts and
+inference.candidate_logits, the LoRA unmerged) in fp32 with TF32 off, the part of the 9B that does not fit a
+24 GB GPU streamed from CPU memory, over the shared case set (20 typed-decisions rows, Laya's and the decoder
+edge cases): 104 requests, 4 rejected upstream, 492 questions. The layout port is also checked against
+upstream on 277 requests without the model (`layout.py`): identical token rows, the same rejections.
+
+| | token rows | decisions | option logits max | probabilities max (p99) | wire answers |
+|---|---|---|---|---|---|
+| CUDA, RTX 4090 | 492 / 492 identical, 0 rejection mismatches | 100 % | 1.1e-4 | 6.5e-6 (5.6e-6) | max diff 5.5e-5 |
+
+The graph uses a 4,096-token budget per `session.run`: the weights take 18 GB of a 24 GB GPU, and on WSL
+the driver spills a larger working set into system memory, which slowed the first parity run tenfold.
+
+```sh
+uv run --with peft==0.21.0 python -m ollaya_convert.families.nimble.export --out out/nimble-9b-v2
+uv run --with peft==0.21.0 python -m ollaya_convert.families.nimble.goldens out/nimble-9b-v2 --device offload
+cargo run --release -p ollaya-runner --features ollaya-runner/cuda --example parity_nimble -- convert/out/nimble-9b-v2 convert/out/goldens-nimble-9b-v2.jsonl cuda --latency
+```
+
+## Quality and speed
+
+- **Typed-decisions** (all 400 test states, 2,000 questions, argmax against the majority label, through the
+  Rust runtime on CUDA): **0.665** (choice 0.572, score 0.626, noul 0.810), ECE 0.084 at the shipped
+  temperature 2.179. Nimble was not trained on typed-decisions.
+- **Bespoke Labs' public benchmark** (13 human-labeled subsets, 3,880 questions), Ollaya against Ollama on the
+  same GPU: see the site's comparison and `convert/ollaya_convert/bench_public.py`.

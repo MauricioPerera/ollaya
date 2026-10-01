@@ -1,0 +1,74 @@
+# jeeves (`jeeves-markers-v1`)
+
+PostHog's **Jeeves-9B** ([PostHog/jeeves](https://huggingface.co/PostHog/jeeves), Apache-2.0; code at
+[github.com/PostHog/jeeves](https://github.com/PostHog/jeeves), MIT) is Qwen3.5-9B with a LoRA merged in and a
+Kev-style pointer head, trained with SFT and then CISPO. Upstream it writes a reasoning chain before the head
+reads the answer; with the chain skipped it still answers in one forward pass. Ollaya runs that
+**no-thinking** mode, which the authors report at 0.804 on their test split (0.840 with thinking), with a
+top-label calibration error of 0.021 at the fitted temperature. Requested in #36.
+
+| Tag | Weights | Temperature |
+|---|---|---|
+| `jeeves:9b`, `jeeves:latest` | `PostHog/jeeves@8622b7d1`: five BF16 shards (the fused model) and `head.pt` | 1.859 (`export.json`) |
+
+Thinking mode needs a generation loop in the runner (and the authors' drafters); Ollaya does not run it.
+
+## Rows
+
+`convert/ollaya_convert/families/jeeves/layout.py` ports the authors' `Encoder` (`loader/dataloader.py`,
+format `markers-v3-plainchains`) and request parsing (`inference/api.py`) at `6151619c`:
+
+```text
+content = <|fim_prefix|> + esc(render(state)) + "\n" + <|fim_middle|> + esc(render(instructions)) + "\n" + block
+block   = (<|box_start|> + esc(option) + <|box_end|> + "\n")*
+ids     = tok(chat(content)) ⧺ tok("\n") ⧺ tok("</think>\n\n" + block + <|fim_suffix|>)
+```
+
+- `chat` is Qwen's template around one user message with thinking on (it ends in `<think>\n`, and it trims
+  the message); `"\n"` is the empty thought.
+- `render` and the option texts are Kev's (`prep/format.py`): noul reads `no` then `yes`, a choice
+  `name` or `name: description`, a score its levels. `esc` rewrites `<|name|>` so text cannot form a marker.
+- The pointer head scores option j as `k(h[opt_j]) · q(h[decide]) / 16`, at the j-th `<|box_end|>` after the
+  last `</think>` and the final `<|fim_suffix|>`.
+- **Tokenizer.** Upstream tokenizes through transformers 5, whose `Qwen2Tokenizer` rewrites the
+  pre-tokenizer of Jeeves' `tokenizer.json` (as for Kev). `jaredpalmer/kev-9b`'s `tokenizer.json` is exactly
+  that tokenizer, identical in every field, so the manifest takes the tokenizer from there.
+
+`python -m ollaya_convert.families.jeeves.check <snapshot> --tokenizer <kev-9b tokenizer.json>` compares
+the port with the upstream Encoder on the shared case set: 265 requests with identical token rows, the same 16
+rejections.
+
+## The graph
+
+Kev's contract (`input_ids`, `decide_pos`, `opt_pos` → `scores`), 13 MB, weightless: transformers' Qwen3.5 text
+model with Jeeves' fused weights, recomputed by `llm_common/qwen35.py`, and the head's four tensors read by
+byte offset from `head.pt`. `weights_in_memory` is `bf16`, about 18 GB. The runner uses a 4,096-token budget
+per `session.run`, as for `nimble`.
+
+## Differences from upstream
+
+- **No thinking.** The reasoning chain and the drafters are not run.
+- **Strict questions.** As upstream, a question with fields other than `type`, `instructions` and `criteria`
+  is rejected, and choice criteria must be an object.
+
+## Parity (measured 2026-09-30)
+
+Goldens: the authors' own model code (`export.load_export`) in fp32 on the CPU, with their Encoder, over the
+shared case set (10 typed-decisions rows and the edge cases): 107 requests, 16 rejected upstream, 430 questions.
+
+| | rows | decisions | scores max | probabilities max (p99) | five questions (runner, p50) |
+|---|---|---|---|---|---|
+| CUDA, RTX 4090 | 430 / 430 identical, 0 rejection mismatches | 100 % | 1.9e-4 | 1.4e-5 (8.0e-6) | 673 ms on the fixtures |
+
+## Quality
+
+- **Typed-decisions** (all 400 test states, 2,000 questions, argmax against the majority label, through the
+  Rust runtime on CUDA): **0.680** (choice 0.657, score 0.601, noul 0.808), ECE **0.031** at the shipped
+  temperature 1.859. Jeeves' training sources (`export.json`) do not include typed-decisions.
+- **RTX 4090, HTTP API:** the triage preset (five questions) on a short message takes 838 ms at the median of
+  15 warm requests.
+
+## Limits
+
+- **Rows.** Up to 8,192 tokens per question, the whole state included; a longer row is rejected.
+- **Memory.** About 18 GB with the weights kept BF16: a 24 GB GPU.

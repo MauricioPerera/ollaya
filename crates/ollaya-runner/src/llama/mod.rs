@@ -16,6 +16,7 @@
 //! the same one. A model whose cache cannot be cut back to a prefix (Qwen3.5's recurrent layers,
 //! `jevk5-v1`) uses the `cold` plan: every question is one cold pass.
 
+pub mod cuda_kernels;
 pub mod ffi;
 
 use std::ffi::{CString, c_char, c_int, c_void};
@@ -24,6 +25,8 @@ use std::ptr::NonNull;
 use std::sync::Mutex;
 
 use ollaya_decision::Questions;
+use ollaya_decision::cygnet::{self, CygnetConfig};
+use ollaya_decision::jebadiah::{self, JebadiahConfig};
 use ollaya_decision::jevk5::{self, JevK5Config};
 use ollaya_decision::llm_logits::{self, LlmLogitsConfig};
 use ollaya_decision::winnow::{self, WinnowConfig};
@@ -34,7 +37,13 @@ use crate::{Error, Output, QuestionOutput};
 use ffi::{Api, Batch, Token};
 
 /// Layouts the llama engine runs.
-pub const LAYOUTS: &[&str] = &[llm_logits::LAYOUT, winnow::LAYOUT, jevk5::LAYOUT];
+pub const LAYOUTS: &[&str] = &[
+    llm_logits::LAYOUT,
+    winnow::LAYOUT,
+    jevk5::LAYOUT,
+    jebadiah::LAYOUT,
+    cygnet::LAYOUT,
+];
 
 /// Tokens per `llama_decode` call and per physical batch: llama-server's defaults, which the
 /// goldens' reference runs with.
@@ -106,6 +115,16 @@ enum Layout {
     },
     Winnow(WinnowConfig),
     JevK5(JevK5Config),
+    Jebadiah(JebadiahConfig),
+    Cygnet {
+        cfg: Box<CygnetConfig>,
+        /// Tokens of the template pieces and the system message, fixed per model.
+        pre: Vec<Token>,
+        system: Vec<Token>,
+        mid: Vec<Token>,
+        post: Vec<Token>,
+        bos: Option<Token>,
+    },
 }
 
 /// One question, ready to evaluate.
@@ -274,13 +293,36 @@ pub fn probe(libs: &Libraries) -> Result<Value, Error> {
                     0 => "cpu",
                     _ => "accel",
                 };
-                serde_json::json!({
-                    "name": ffi::cstr((api.ggml_backend_dev_name)(d)),
+                let name = ffi::cstr((api.ggml_backend_dev_name)(d));
+                let cuda = name
+                    .strip_prefix("CUDA")
+                    .and_then(|n| n.parse().ok())
+                    .and_then(cuda_kernels::device_info);
+                let mut extra = serde_json::Map::new();
+                if let Some(info) = cuda {
+                    let (ma, mi) = info.compute_capability;
+                    extra.insert("compute_capability".into(), format!("{ma}.{mi}").into());
+                    extra.insert(
+                        "driver_cuda".into(),
+                        format!("{}.{}", info.driver / 1000, (info.driver % 1000) / 10).into(),
+                    );
+                    extra.insert(
+                        "kernels".into(),
+                        match cuda_unsupported(libs, &name) {
+                            Some(why) => why.into(),
+                            None => "ok".into(),
+                        },
+                    );
+                }
+                let mut v = serde_json::json!({
+                    "name": name,
                     "description": ffi::cstr((api.ggml_backend_dev_description)(d)),
                     "type": kind,
                     "memory_free_mib": free >> 20,
                     "memory_total_mib": total >> 20,
-                })
+                });
+                v.as_object_mut().expect("an object").extend(extra);
+                v
             })
             .collect();
         (version, devices)
@@ -333,6 +375,15 @@ fn auto_gpu(found: &[Gpu]) -> Option<&Gpu> {
         };
         (priority, g.free_mib)
     })
+}
+
+/// Why llama.cpp's CUDA backend cannot run on the device named `dev` (`CUDA0`), or `None` when it
+/// can or it cannot be told (not a CUDA device, an unknown pack, no answer from the driver).
+fn cuda_unsupported(libs: &Libraries, dev: &str) -> Option<String> {
+    let ordinal = dev.strip_prefix("CUDA")?.parse().ok()?;
+    let kernels = cuda_kernels::for_backend(libs.cuda.as_deref()?)?;
+    let info = cuda_kernels::device_info(ordinal)?;
+    kernels.check(info.compute_capability, info.driver).err()
 }
 
 /// Ollaya's name for a llama.cpp device: `CUDA0` → `cuda:0`, `Vulkan0` → `vulkan:0`.
@@ -486,6 +537,37 @@ fn prepare(vocab: &Vocab, decision: &Value) -> Result<Layout, Error> {
             cfg.validate().map_err(bad)?;
             Layout::JevK5(cfg)
         }
+        Some(jebadiah::LAYOUT) => {
+            let cfg: JebadiahConfig =
+                serde_json::from_value(decision.clone()).map_err(parse_error)?;
+            cfg.validate().map_err(bad)?;
+            Layout::Jebadiah(cfg)
+        }
+        Some(cygnet::LAYOUT) => {
+            let cfg: CygnetConfig =
+                serde_json::from_value(decision.clone()).map_err(parse_error)?;
+            cfg.validate().map_err(bad)?;
+            let pre = vocab.tokenize(&cfg.template.pre, false, true)?;
+            let mid = vocab.tokenize(&cfg.template.mid, false, true)?;
+            let post = vocab.tokenize(&cfg.template.post, false, true)?;
+            let system = vocab.tokenize(cygnet::SYSTEM, false, false)?;
+            let x = vocab.tokenize("x", true, false)?;
+            let bos = (x.len() == 2).then(|| x[0]);
+            if bos.is_some() != cfg.add_bos {
+                return Err(model_error(format!(
+                    "the GGUF {} a BOS token, decision.json says the opposite",
+                    if bos.is_some() { "adds" } else { "adds no" }
+                )));
+            }
+            Layout::Cygnet {
+                cfg: Box::new(cfg),
+                pre,
+                system,
+                mid,
+                post,
+                bos,
+            }
+        }
         other => {
             return Err(model_error(format!(
                 "the llama engine cannot run layout {other:?}"
@@ -498,6 +580,8 @@ fn prepare(vocab: &Vocab, decision: &Value) -> Result<Layout, Error> {
         }
         Layout::Winnow(cfg) => vec![&cfg.labels],
         Layout::JevK5(cfg) => vec![&cfg.labels],
+        Layout::Jebadiah(cfg) => vec![&cfg.labels],
+        Layout::Cygnet { cfg, .. } => vec![&cfg.labels],
     };
     for table in tables {
         for (s, &id) in table.strings.iter().zip(&table.ids) {
@@ -566,6 +650,26 @@ impl LlamaModel {
             }
         };
         let threads = threads.map_or_else(default_threads, |t| t as i32);
+        // A CUDA GPU the pack's kernels cannot run on would load, then abort at the first
+        // question (#42): skip it with the reason instead.
+        let pick = match pick.map(|gpu| (gpu, cuda_unsupported(libs, &gpu.name))) {
+            Some((gpu, Some(why))) if *target == Target::Auto => {
+                tracing::warn!(
+                    "{} ({}): {why}; loading on the CPU instead",
+                    gpu.name,
+                    gpu.description
+                );
+                None
+            }
+            Some((gpu, Some(why))) => {
+                return Err(model_error(format!(
+                    "{} ({}): {why}",
+                    gpu.name, gpu.description
+                )));
+            }
+            Some((gpu, None)) => Some(gpu),
+            None => None,
+        };
         let (handles, device) = match pick {
             Some(gpu) => {
                 tracing::info!(device = %gpu.name, description = %gpu.description,
@@ -719,6 +823,94 @@ impl LlamaModel {
                             "question {qid:?}: the prompt is {} tokens, and the model's context \
                              holds {n_ctx}; shorten the state, the question or its options",
                             ids.len()
+                        ))
+                        .into());
+                    }
+                    rows.push((
+                        qid,
+                        Row {
+                            ids,
+                            p: 0,
+                            candidates: q.label_ids.iter().map(|&t| t as Token).collect(),
+                            wire_order: q.wire_order,
+                        },
+                    ));
+                }
+                Ok(Encoded {
+                    rows,
+                    state_tokens,
+                    state_truncated: false,
+                })
+            }
+            Layout::Cygnet {
+                cfg,
+                pre,
+                system,
+                mid,
+                post,
+                bos,
+            } => {
+                // No state cut: a prompt that does not fit the context is rejected (upstream
+                // answers 422 past the server's context).
+                let prompts = cfg.questions(state, questions)?;
+                let state_tokens = vocab
+                    .tokenize(&cygnet::state_text(state), false, false)?
+                    .len();
+                let n_ctx = self.settings.n_ctx;
+                let mut rows = Vec::with_capacity(prompts.len());
+                for (qid, q) in prompts {
+                    let user = vocab.tokenize(&q.user, false, false)?;
+                    let mut ids = Vec::with_capacity(pre.len() + system.len() + user.len() + 64);
+                    for part in [pre, system, mid, &user, post] {
+                        ids.extend_from_slice(part);
+                    }
+                    if let Some(b) = *bos
+                        && ids.first() != Some(&b)
+                    {
+                        ids.insert(0, b);
+                    }
+                    if ids.len() >= n_ctx {
+                        return Err(ollaya_decision::Error::invalid(format!(
+                            "question {qid:?}: the prompt is {} tokens, and the model's context \
+                             holds {n_ctx}; shorten the state, the question or its options",
+                            ids.len()
+                        ))
+                        .into());
+                    }
+                    rows.push((
+                        qid,
+                        Row {
+                            ids,
+                            p: 0,
+                            candidates: q.label_ids.iter().map(|&t| t as Token).collect(),
+                            wire_order: q.wire_order,
+                        },
+                    ));
+                }
+                Ok(Encoded {
+                    rows,
+                    state_tokens,
+                    state_truncated: false,
+                })
+            }
+            Layout::Jebadiah(cfg) => {
+                // The author cuts the state of a prompt over max_prompt_tokens; Ollaya never
+                // answers from a cut state, so such a question is rejected.
+                let prompts = cfg.questions(state, questions)?;
+                let state_tokens = vocab
+                    .tokenize(&jebadiah::serialize_state(state), false, false)?
+                    .len();
+                let mut rows = Vec::with_capacity(prompts.len());
+                for (qid, q) in prompts {
+                    let ids = jebadiah::token_ids(&q.user, |t, special| {
+                        vocab.tokenize(t, false, special)
+                    })?;
+                    if ids.len() > cfg.max_prompt_tokens {
+                        return Err(ollaya_decision::Error::invalid(format!(
+                            "question {qid:?}: the prompt is {} tokens, and this model reads at \
+                             most {}; shorten the state, the question or its options",
+                            ids.len(),
+                            cfg.max_prompt_tokens
                         ))
                         .into());
                     }

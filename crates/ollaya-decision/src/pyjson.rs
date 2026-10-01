@@ -20,8 +20,24 @@ pub fn dumps(value: &Value, ensure_ascii: bool) -> String {
         sort_keys: false,
         item_sep: ", ",
         key_sep: ": ",
+        indent: None,
     };
-    write_value(&mut out, value, &style);
+    write_value(&mut out, value, &style, 0);
+    out
+}
+
+/// `json.dumps(value, ensure_ascii=ensure_ascii, indent=indent)`: one item per line, `","` and
+/// `": "` separators, empty containers as `[]` and `{}`.
+pub fn dumps_indent(value: &Value, ensure_ascii: bool, indent: usize) -> String {
+    let mut out = String::new();
+    let style = Style {
+        ascii: ensure_ascii,
+        sort_keys: false,
+        item_sep: ",",
+        key_sep: ": ",
+        indent: Some(indent),
+    };
+    write_value(&mut out, value, &style, 0);
     out
 }
 
@@ -34,8 +50,9 @@ pub fn dumps_canonical(value: &Value) -> String {
         sort_keys: true,
         item_sep: ",",
         key_sep: ":",
+        indent: None,
     };
-    write_value(&mut out, value, &style);
+    write_value(&mut out, value, &style, 0);
     out
 }
 
@@ -44,9 +61,19 @@ struct Style {
     sort_keys: bool,
     item_sep: &'static str,
     key_sep: &'static str,
+    /// Spaces per level; items then go one per line.
+    indent: Option<usize>,
 }
 
-fn write_value(out: &mut String, value: &Value, style: &Style) {
+/// With `indent`, the line break and indentation before an item at `depth`.
+fn newline(out: &mut String, style: &Style, depth: usize) {
+    if let Some(n) = style.indent {
+        out.push('\n');
+        out.extend(std::iter::repeat_n(' ', n * depth));
+    }
+}
+
+fn write_value(out: &mut String, value: &Value, style: &Style, depth: usize) {
     match value {
         Value::Null => out.push_str("null"),
         Value::Bool(true) => out.push_str("true"),
@@ -59,7 +86,11 @@ fn write_value(out: &mut String, value: &Value, style: &Style) {
                 if i > 0 {
                     out.push_str(style.item_sep);
                 }
-                write_value(out, item, style);
+                newline(out, style, depth + 1);
+                write_value(out, item, style, depth + 1);
+            }
+            if !items.is_empty() {
+                newline(out, style, depth);
             }
             out.push(']');
         }
@@ -70,13 +101,18 @@ fn write_value(out: &mut String, value: &Value, style: &Style) {
                 entries.sort_by(|a, b| a.0.cmp(b.0));
             }
             out.push('{');
+            let empty = entries.is_empty();
             for (i, (k, v)) in entries.into_iter().enumerate() {
                 if i > 0 {
                     out.push_str(style.item_sep);
                 }
+                newline(out, style, depth + 1);
                 write_str(out, k, style.ascii);
                 out.push_str(style.key_sep);
-                write_value(out, v, style);
+                write_value(out, v, style, depth + 1);
+            }
+            if !empty {
+                newline(out, style, depth);
             }
             out.push('}');
         }
@@ -248,5 +284,16 @@ mod tests {
         assert_eq!(dumps_canonical(&json!("a\"b")), r#""a\"b""#);
         assert_eq!(dumps_canonical(&json!(null)), "null");
         assert_eq!(dumps_canonical(&json!({})), "{}");
+    }
+
+    #[test]
+    fn indent_matches_python() {
+        // json.dumps(v, ensure_ascii=False, indent=1)
+        let v = json!({"a": [1, {"b": []}, {}], "z": "Zoë", "e": {}, "n": null, "f": 1.5});
+        assert_eq!(
+            dumps_indent(&v, false, 1),
+            "{\n \"a\": [\n  1,\n  {\n   \"b\": []\n  },\n  {}\n ],\n \"z\": \"Zoë\",\n \"e\": {},\n \"n\": null,\n \"f\": 1.5\n}"
+        );
+        assert_eq!(dumps_indent(&json!([]), false, 1), "[]");
     }
 }

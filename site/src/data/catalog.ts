@@ -194,6 +194,64 @@ const overlays: Record<string, ModelOverlay> = {
       e4b: { summary: "Winnow-E4B, Q8_0 GGUF, with the author's fitted temperature: 0.722 on typed decisions in 89 ms on an RTX 4090. Ollaya's recommended model." },
     },
   },
+  nimble: {
+    stats: { tag: 'nimble:9b', accuracy: 0.665, latencyMs: 2297 },
+    title: 'Nimble',
+    description:
+      "Decision model by Bespoke Labs: a LoRA on Qwen3.5-9B trained on contrastive pairs. Nimble reads the whole request as a JSON schema and scores each option by the next-token logit of its code; Ollaya applies the author's temperature, so its probabilities are calibrated. Up to 255 options.",
+    publisher: { name: 'Bespoke Labs', url: 'https://huggingface.co/bespokelabs' },
+    capabilities: ['decision', 'fine-tuned'],
+    keywords: ['nimble', 'bespoke', 'bespoke labs', 'qwen', 'qwen3.5', 'lora', 'llm', 'decision', 'classification', 'typesafe', 'jev', 'system one'],
+    rank: 12,
+    tags: {
+      latest: { summary: 'Same as nimble:9b.' },
+      '9b': { summary: "Bespoke-Nimble-9B v2 (LoRA on Qwen3.5-9B) with the author's temperature 2.18. Needs a 24 GB GPU." },
+    },
+  },
+  jeeves: {
+    stats: { tag: 'jeeves:9b', accuracy: 0.68, latencyMs: 838 },
+    title: 'Jeeves',
+    description:
+      "Decision model by PostHog: Qwen3.5-9B with a LoRA merged in and a pointer head that scores every option at its own marker. Ollaya runs it without its reasoning chain, in one forward pass per question, calibrated with the authors' temperature.",
+    publisher: { name: 'PostHog', url: 'https://huggingface.co/PostHog' },
+    capabilities: ['decision', 'fine-tuned'],
+    keywords: ['jeeves', 'posthog', 'qwen', 'qwen3.5', 'pointer', 'llm', 'decision', 'classification', 'typesafe', 'jev', 'system one'],
+    rank: 15,
+    tags: {
+      latest: { summary: 'Same as jeeves:9b.' },
+      '9b': { summary: 'Jeeves-9B without thinking, with the fitted temperature 1.86. Needs a 24 GB GPU.' },
+    },
+  },
+  jeb: {
+    stats: { tag: 'jeb:9b', latencyMs: 124 },
+    title: 'Jebadiah',
+    description:
+      "Decision models by Jason Brashear and AINode: LoRAs merged into Qwen3.5 and Qwen3.8, published as GGUF. Jeb reads the option labels' logits after AINode's own decision prompt, with a fitted temperature per question type; Ollaya runs the authors' files on llama.cpp.",
+    publisher: { name: 'frontier-infra', url: 'https://huggingface.co/frontier-infra' },
+    capabilities: ['decision', 'fine-tuned', 'gguf'],
+    keywords: ['jeb', 'jebadiah', 'ainode', 'qwen', 'qwen3.5', 'qwen3.8', 'gguf', 'llama.cpp', 'llm', 'decision', 'classification', 'typesafe', 'jev', 'system one'],
+    rank: 13,
+    tags: {
+      latest: { summary: 'Same as jeb:9b.' },
+      '4b': { summary: 'Jebadiah 4B v2, Q8_0 GGUF: the smallest and fastest Jeb.' },
+      '9b': { summary: "Jebadiah 9B v2, Q8_0 GGUF: the authors' recommended local model." },
+      '27b': { summary: 'Jebadiah 27B (Qwen3.8), Q4_K_M GGUF, 17 GB: the largest Jeb, for a 24 GB GPU.' },
+    },
+  },
+  cygnet: {
+    stats: { tag: 'cygnet:12b', accuracy: 0.683, latencyMs: 202 },
+    title: 'Cygnet',
+    description:
+      "Frozen Gemma 4 12B IT with blockbrain-ai's Cygnet prompt: the options as letters, one answer slot, and one calibration temperature. No fine-tuning; Ollaya runs ggml-org's Q8_0 GGUF on llama.cpp.",
+    publisher: { name: 'blockbrain-ai', url: 'https://github.com/blockbrain-ai/cygnet-recipe' },
+    capabilities: ['decision', 'multilingual', 'gguf'],
+    keywords: ['cygnet', 'gemma', 'gemma 4', 'gguf', 'llama.cpp', 'llm', 'decision', 'classification', 'typesafe', 'jev', 'system one'],
+    rank: 14,
+    tags: {
+      latest: { summary: 'Same as cygnet:12b.' },
+      '12b': { summary: 'Gemma 4 12B IT (Q8_0) with Cygnet\'s prompt and temperature 3.4: 0.683 on typed decisions, up to 20 options.' },
+    },
+  },
   jevk5: {
     stats: { tag: 'jevk5:4b', accuracy: 0.625, latencyMs: 105 },
     title: 'JevK5',

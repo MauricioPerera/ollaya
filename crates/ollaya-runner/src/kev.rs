@@ -245,7 +245,7 @@ impl KevModel {
 /// With the pass off, ONNX Runtime runs the graph as exported, which matches the goldens on CPU
 /// and CUDA. The head is two small matmuls, so the fusion saves nothing here. The setting can go
 /// once `ort` links ONNX Runtime 1.30 or newer.
-fn configure(builder: SessionBuilder, device: Device) -> Result<SessionBuilder, Error> {
+pub(crate) fn configure(builder: SessionBuilder, device: Device) -> Result<SessionBuilder, Error> {
     Ok(crate::decider::configure(builder, device)?
         .with_disabled_optimizers("GemmTransposeFusion")?)
 }

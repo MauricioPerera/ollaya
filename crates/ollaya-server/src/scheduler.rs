@@ -17,7 +17,7 @@ use serde_json::Value;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::{Child, Command};
 
-use ollaya_decision::{jevk5, llm_logits, winnow};
+use ollaya_decision::{cygnet, jebadiah, jevk5, llm_logits, winnow};
 use ollaya_registry::pull::RunCheck;
 
 use crate::Error;
@@ -91,7 +91,13 @@ struct Launch<'a> {
 }
 
 /// The GGUF layouts this build's runner can run (`ollaya_runner::llama::LAYOUTS`).
-pub const LLAMA_LAYOUTS: &[&str] = &[llm_logits::LAYOUT, winnow::LAYOUT, jevk5::LAYOUT];
+pub const LLAMA_LAYOUTS: &[&str] = &[
+    llm_logits::LAYOUT,
+    winnow::LAYOUT,
+    jevk5::LAYOUT,
+    jebadiah::LAYOUT,
+    cygnet::LAYOUT,
+];
 
 #[derive(Debug, Deserialize)]
 struct Hello {
@@ -581,8 +587,10 @@ impl Scheduler {
             loaded_at: SystemTime::now(),
             port: hello.port,
             child: tokio::sync::Mutex::new(child),
+            // Plain HTTP to 127.0.0.1: no TLS roots, so a host without CA certificates works.
             http: reqwest::Client::builder()
                 .no_proxy()
+                .tls_certs_only(std::iter::empty())
                 .build()
                 .map_err(|e| Error::LoadFailed(e.to_string()))?,
             leases: AtomicUsize::new(0),

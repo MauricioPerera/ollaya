@@ -240,6 +240,33 @@ CATALOG = {
                   "same state and option texts and token ids, the same rejections, the same decision on every "
                   "question, option logits within 1.3e-4 and probabilities within 2.9e-5.",
     },
+    "nimble": {
+        "namespace": "library",
+        "model": "nimble",
+        "family": "nimble",
+        "author": "Bespoke Labs (adapter) and the Qwen team (base model)",
+        "license": "Apache-2.0",
+        "license_text": ("Bespoke-Nimble-9B-v2 by Bespoke Labs (https://huggingface.co/bespokelabs/Bespoke-Nimble-9B-v2)\n"
+                         "LoRA adapter: Apache-2.0.\n"
+                         "Base model: Qwen3.5-9B by the Qwen team (https://huggingface.co/Qwen/Qwen3.5-9B), Apache-2.0.\n"
+                         "Licensed under the Apache License, Version 2.0.\n\n") + LICENSE_APACHE,
+        "tags": {
+            "9b": _wl("nimble-9b-v2", "bespokelabs/Bespoke-Nimble-9B-v2", "4b8c04d1ac2cea3e41e5e3c4d2130bcead2c0abe",
+                      "Bespoke Labs' Nimble v2: a LoRA on Qwen3.5-9B that answers every question from the next-token "
+                      "logits of its option codes, calibrated with the author's temperature. Up to 255 options. "
+                      "Needs about 18 GB of memory; best on a 24 GB GPU.",
+                      "9B", 8192, ["en"], wl_dir=os.path.join(OUT, "nimble-9b-v2"),
+                      weights={**{"model.safetensors-%05d-of-00004.safetensors" % i:
+                                  ("Qwen/Qwen3.5-9B", "c202236235762e1c871ad0ccb60c8ee5ba337b9a",
+                                   "model.safetensors-%05d-of-00004.safetensors" % i) for i in range(1, 5)},
+                               "adapter_model.safetensors": "adapter_model.safetensors"}),
+        },
+        "aliases": {"latest": "9b"},
+        "parity": "Ollaya's Rust runtime matches the author's reference code (serving_schema.prepare_prompts and "
+                  "inference.candidate_logits, PyTorch fp32 with the LoRA unmerged) on 492 questions from 104 "
+                  "requests: identical token rows, the same 4 rejected requests, the same decision on every "
+                  "question, option logits within 1.1e-4 and probabilities within 6.5e-6 (CUDA).",
+    },
     "kev": {
         "namespace": "library",
         "model": "kev",
@@ -367,6 +394,90 @@ CATALOG = {
         },
         "aliases": {"latest": "12b"},
         "parity": "PARITY-PENDING",
+    },
+    "cygnet": {
+        "namespace": "library",
+        "model": "cygnet",
+        "family": "cygnet",
+        "author": "blockbrain-ai (recipe) and Google DeepMind (Gemma 4)",
+        "license": "Apache-2.0",
+        "license_text": "Cygnet by blockbrain-ai (https://github.com/blockbrain-ai/cygnet-recipe), a prompt and "
+                        "calibration for Gemma 4 12B IT by Google DeepMind, MIT. The weights are "
+                        "google/gemma-4-12B-it (Apache-2.0), as ggml-org's GGUF conversion of the revision Cygnet pins.\n"
+                        "Licensed under the Apache License, Version 2.0.\n\n" + LICENSE_APACHE,
+        "tags": {
+            # ggml-org's Q8_0 conversion of google/gemma-4-12B-it@707f0a3b (its .src_sha), the revision
+            # Cygnet's published runs pin. Cygnet itself is a prompt and one temperature, no weights.
+            "12b": _gguf("cygnet-12b-q8_0", "ggml-org/gemma-4-12B-it-GGUF", "e3e681731089efaa3f0917336944ac64752db8ba",
+                         "gemma-4-12B-it-Q8_0.gguf",
+                         "Cygnet: frozen Gemma 4 12B IT (Q8_0 GGUF) reading one option letter after Cygnet's prompt, "
+                         "with its calibration temperature 3.4. Up to 20 options.",
+                         "12B", ["multilingual"]),
+        },
+        "aliases": {"latest": "12b"},
+        "parity": "Ollaya's runner matches stock llama-server of the pinned build (b11146) on the same GGUF, CUDA "
+                  "(RTX 4090): 502 questions, every decision the same, option logits within 7.7e-6 and probabilities "
+                  "within 4.1e-7. The user messages are identical to Cygnet's own shim on 1,364 test prompts.",
+    },
+    "jeeves": {
+        "namespace": "library",
+        "model": "jeeves",
+        "family": "jeeves",
+        "author": "PostHog (fused weights and pointer head) and the Qwen team (base model)",
+        "license": "Apache-2.0",
+        "license_text": ("Jeeves-9B by PostHog (https://huggingface.co/PostHog/jeeves, https://github.com/PostHog/jeeves): "
+                         "Qwen3.5-9B with its LoRA merged, and a pointer head, Apache-2.0.\n"
+                         "Base model: Qwen3.5-9B by the Qwen team, Apache-2.0.\n"
+                         "Licensed under the Apache License, Version 2.0.\n\n") + LICENSE_APACHE,
+        "tags": {
+            # No-thinking mode: the pointer head reads the option markers after an empty thought.
+            "9b": dict(_wl("jeeves-9b", "PostHog/jeeves", "8622b7d1652a9dcb8629486b84dce9e8d690c5cd",
+                           "PostHog's Jeeves-9B without its reasoning chain: Qwen3.5-9B (LoRA merged) and a pointer head "
+                           "that scores every option at its own marker, calibrated. Needs about 18 GB of memory.",
+                           "9B", 8192, ["en"], wl_dir=os.path.join(OUT, "jeeves-9b"),
+                           weights={**{"model-%05d-of-00005.safetensors" % i: "model-%05d-of-00005.safetensors" % i
+                                       for i in range(1, 6)}, "head.pt": "head.pt"}),
+                       tokenizer=("jaredpalmer/kev-9b", "2629c06a5aeb0feb3b9783bafed17ed8f39ecf5c", "tokenizer.json")),
+        },
+        "aliases": {"latest": "9b"},
+        "parity": "Ollaya's Rust runtime matches the authors' own code (their Qwen3.5 model and pointer head, fp32, no "
+                  "thinking) on 430 questions from 107 requests, on CUDA: identical token rows and option positions, the "
+                  "same 16 rejected requests, the same decision on every question, scores within 1.9e-4 and "
+                  "probabilities within 1.4e-5.",
+    },
+    "jeb": {
+        "namespace": "library",
+        "model": "jeb",
+        "family": "jebadiah",
+        "author": "Jason Brashear, AINode (frontier-infra)",
+        "license": "Apache-2.0",
+        "license_text": "Jebadiah by Jason Brashear and AINode (https://huggingface.co/frontier-infra, "
+                        "https://github.com/getainode/jebadiah): rank-16 LoRA merges into Qwen3.5-4B, Qwen3.5-9B and "
+                        "Qwen3.8-27B by the Qwen team (Apache-2.0), published by the authors as GGUF.\n"
+                        "Licensed under the Apache License, Version 2.0.\n\n" + LICENSE_APACHE,
+        "tags": {
+            # The authors' own GGUF files, pinned; Q8_0 for 4b and 9b (the files they checked against bf16:
+            # 256/260 and 257/260), Q4_K_M for 27b so it fits a 24 GB GPU (29 GB at Q8_0).
+            "4b": _gguf("jebadiah-4b-q8_0", "frontier-infra/jebadiah-4b-v2-GGUF", "7f671f9a31827257c26401000484e154b39417e6",
+                        "jebadiah-4b-v2-Q8_0.gguf",
+                        "Jebadiah 4B v2 (Qwen3.5-4B, LoRA merged), Q8_0 GGUF on llama.cpp: the option letters' logits "
+                        "after AINode's decision prompt, with the authors' per-type temperatures.",
+                        "4B", ["en"]),
+            "9b": _gguf("jebadiah-9b-q8_0", "frontier-infra/jebadiah-9b-v2-GGUF", "adaec6b3d1f0421706deb49fa275ab49093982ff",
+                        "jebadiah-9b-v2-Q8_0.gguf",
+                        "Jebadiah 9B v2 (Qwen3.5-9B, LoRA merged), Q8_0 GGUF: the authors' recommended local model.",
+                        "9B", ["en"]),
+            "27b": _gguf("jebadiah-27b-q4_k_m", "frontier-infra/jebadiah-27b-GGUF", "7451e611a20ce3f56dd7d87f78c8a25b736c08f5",
+                         "jebadiah-27b-Q4_K_M.gguf",
+                         "Jebadiah 27B (Qwen3.8-27B, LoRA merged), Q4_K_M GGUF (17 GB, fits a 24 GB GPU): the most "
+                         "accurate Jebadiah.",
+                         "27B", ["en"]),
+        },
+        "aliases": {"latest": "9b"},
+        "parity": "Ollaya's runner matches stock llama-server of the pinned build (b11146) on the same GGUF, CUDA "
+                  "(RTX 4090): 494 questions per model, every decision the same, option logits within 7.7e-6 and "
+                  "probabilities within 2.4e-6. The prompts are identical to the authors' jebadiah_prompt.Renderer "
+                  "on 1,349 test prompts.",
     },
     "jevk5": {
         "namespace": "library",

@@ -34,6 +34,7 @@ ollaya-api.workspace = true
 ollaya-decision.workspace = true
 ollaya-runner.workspace = true
 ollaya-server.workspace = true
+reqwest.workspace = true
 rmcp.workspace = true
 rustyline.workspace = true
 schemars = "1"
