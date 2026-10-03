@@ -110,6 +110,8 @@ function Install-Ollaya {
         "https://github.com/$repo/releases/latest/download"
     }
     $dest = if ($env:OLLAYA_INSTALL_DIR) { $env:OLLAYA_INSTALL_DIR } else { Join-Path $env:LOCALAPPDATA 'Programs\Ollaya' }
+    # `ollaya update` 0.8.0 and 0.9.0 pass a verbatim path (\\?\C:\...), which Join-Path rejects (#50).
+    $dest = $dest -replace '^\\\\\?\\UNC\\', '\\' -replace '^\\\\\?\\', ''
     $archive = 'ollaya-windows-amd64.zip'
 
     $gpu = Get-NvidiaGpu
