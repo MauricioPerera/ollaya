@@ -427,6 +427,28 @@ CATALOG = {
                   "(RTX 4090): 502 questions, every decision the same, option logits within 7.7e-6 and probabilities "
                   "within 4.1e-7. The user messages are identical to Cygnet's own shim on 1,364 test prompts.",
     },
+    "snap": {
+        "namespace": "library",
+        "model": "snap",
+        "family": "snap",
+        "author": "logitlab (snap1-2b, with emnlmn's snap) and OpenBMB (MiniCPM5)",
+        "license": "Apache-2.0",
+        "license_text": "snap1-2b by logitlab (https://huggingface.co/logitlab/snap1-2b-GGUF), openbmb/MiniCPM5-2B "
+                        "(Apache-2.0) fine-tuned with a LoRA and merged, Apache-2.0. Its prompt is snap's "
+                        "(https://github.com/emnlmn/snap, MIT), ported to Ollaya's runtime.\n"
+                        "Licensed under the Apache License, Version 2.0.\n\n" + LICENSE_APACHE,
+        "tags": {
+            # Q8_0 of snap1-2b at the GGUF repo's pinned commit; snap's own default is Q4_K_M, which the
+            # author measured the same on typed-decisions (0.654 against 0.655).
+            "2b": _gguf("snap-v1-snap1-2b-q8_0", "logitlab/snap1-2b-GGUF", "39321915452e54428e18558ba882c771bc856110",
+                        "snap1-2b-q8_0.gguf",
+                        "snap1-2b (MiniCPM5-2B with a merged LoRA), Q8_0 GGUF on llama.cpp: the option letters' "
+                        "logits after snap's own prompt, raw probabilities. Up to 26 options.",
+                        "2B", ["en", "it"]),
+        },
+        "aliases": {"latest": "2b"},
+        "parity": "PARITY-PENDING",
+    },
     "jeeves": {
         "namespace": "library",
         "model": "jeeves",

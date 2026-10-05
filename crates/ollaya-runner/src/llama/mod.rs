@@ -30,6 +30,7 @@ use ollaya_decision::cygnet::{self, CygnetConfig};
 use ollaya_decision::jebadiah::{self, JebadiahConfig};
 use ollaya_decision::jevk5::{self, JevK5Config};
 use ollaya_decision::llm_logits::{self, LlmLogitsConfig};
+use ollaya_decision::snap::{self, SnapConfig};
 use ollaya_decision::winnow::{self, WinnowConfig};
 use serde::Deserialize;
 use serde_json::{Map, Value};
@@ -44,6 +45,7 @@ pub const LAYOUTS: &[&str] = &[
     jevk5::LAYOUT,
     jebadiah::LAYOUT,
     cygnet::LAYOUT,
+    snap::LAYOUT,
 ];
 
 /// Tokens per `llama_decode` call and per physical batch: llama-server's defaults, which the
@@ -125,6 +127,12 @@ enum Layout {
         mid: Vec<Token>,
         post: Vec<Token>,
         bos: Option<Token>,
+    },
+    Snap {
+        cfg: Box<SnapConfig>,
+        /// Tokens of the template before and after the user message (system message included).
+        pre: Vec<Token>,
+        post: Vec<Token>,
     },
 }
 
@@ -552,6 +560,18 @@ fn prepare(vocab: &Vocab, decision: &Value) -> Result<Layout, Error> {
                 bos,
             }
         }
+        Some(snap::LAYOUT) => {
+            let cfg: SnapConfig = serde_json::from_value(decision.clone()).map_err(parse_error)?;
+            cfg.validate().map_err(bad)?;
+            // Only the template's own text may produce control tokens, as in snap.
+            let pre = vocab.tokenize(&cfg.template.pre, false, true)?;
+            let post = vocab.tokenize(&cfg.template.post, false, true)?;
+            Layout::Snap {
+                cfg: Box::new(cfg),
+                pre,
+                post,
+            }
+        }
         other => {
             return Err(model_error(format!(
                 "the llama engine cannot run layout {other:?}"
@@ -566,6 +586,7 @@ fn prepare(vocab: &Vocab, decision: &Value) -> Result<Layout, Error> {
         Layout::JevK5(cfg) => vec![&cfg.labels],
         Layout::Jebadiah(cfg) => vec![&cfg.labels],
         Layout::Cygnet { cfg, .. } => vec![&cfg.labels],
+        Layout::Snap { cfg, .. } => vec![&cfg.labels],
     };
     for table in tables {
         for (s, &id) in table.strings.iter().zip(&table.ids) {
@@ -981,6 +1002,45 @@ impl LlamaModel {
                         && ids.first() != Some(&b)
                     {
                         ids.insert(0, b);
+                    }
+                    if ids.len() >= n_ctx {
+                        return Err(ollaya_decision::Error::invalid(format!(
+                            "question {qid:?}: the prompt is {} tokens, and the model's context \
+                             holds {n_ctx}; shorten the state, the question or its options",
+                            ids.len()
+                        ))
+                        .into());
+                    }
+                    rows.push((
+                        qid,
+                        Row {
+                            ids,
+                            p: 0,
+                            candidates: q.label_ids.iter().map(|&t| t as Token).collect(),
+                            wire_order: q.wire_order,
+                        },
+                    ));
+                }
+                Ok(Encoded {
+                    rows,
+                    state_tokens,
+                    state_truncated: false,
+                })
+            }
+            Layout::Snap { cfg, pre, post } => {
+                // One cold pass per question. No state cut: a prompt that does not fit the
+                // context is rejected.
+                let (_, prompts) = cfg.questions(state, questions)?;
+                let state_tokens = vocab
+                    .tokenize(&snap::render_state_toon(state), false, false)?
+                    .len();
+                let n_ctx = self.settings.n_ctx;
+                let mut rows = Vec::with_capacity(prompts.len());
+                for (qid, q) in prompts {
+                    let user = vocab.tokenize(&q.user, false, false)?;
+                    let mut ids = Vec::with_capacity(pre.len() + user.len() + post.len());
+                    for part in [pre, &user, post] {
+                        ids.extend_from_slice(part);
                     }
                     if ids.len() >= n_ctx {
                         return Err(ollaya_decision::Error::invalid(format!(
