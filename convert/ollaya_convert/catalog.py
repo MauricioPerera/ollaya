@@ -447,7 +447,9 @@ CATALOG = {
                         "2B", ["en", "it"]),
         },
         "aliases": {"latest": "2b"},
-        "parity": "PARITY-PENDING",
+        "parity": "Ollaya's runner matches stock llama-server of the pinned build (b11146) on the same GGUF, CPU "
+                  "and CUDA (RTX 5090): 573 questions, every decision the same, option logits within 7.4e-6 and "
+                  "probabilities within 1.9e-6. The prompt token ids are snap's own, from its export-prompts.",
     },
     "jeeves": {
         "namespace": "library",

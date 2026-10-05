@@ -3,6 +3,9 @@
 //!
 //!     cargo run --release -p ollaya-runner --example logits -- <model-dir> <requests.jsonl> <out.jsonl> [cpu|cuda|metal]
 //!
+//! A directory with a `model.gguf` runs on llama.cpp, loaded from `$OLLAYA_LIBRARY_PATH/llama` with
+//! the CUDA backend from `$OLLAYA_LIBRARY_PATH/cuda_v13` (or `cuda_v12`), as `parity_llama` does.
+//!
 //! Each input line is `{"id", "state", "questions"}`. Each output line is `{"id", "logits": {qid: [...]}}`
 //! with the logits in the order answers use (a choice's criteria order, noul `[false, true]`, score
 //! levels), or `{"id", "error"}` for a request the model rejects.
@@ -11,7 +14,9 @@ use std::io::{BufRead, Write};
 use std::path::PathBuf;
 use std::time::Instant;
 
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, bail};
+use ollaya_runner::engine::Engine;
+use ollaya_runner::llama::{Libraries, LlamaModel, Target};
 use ollaya_runner::{Device, ModelFiles};
 use serde_json::{Map, Value, json};
 
@@ -28,8 +33,34 @@ fn main() -> Result<()> {
         _ => Device::Cpu,
     };
     let t = Instant::now();
-    let model =
-        ollaya_runner::engine::load(&ModelFiles::dir(&PathBuf::from(&args[1])), device, None)?;
+    let dir = PathBuf::from(&args[1]);
+    let model: Box<dyn Engine> = if dir.join("model.gguf").is_file() {
+        let lib = std::env::var_os("OLLAYA_LIBRARY_PATH")
+            .map(PathBuf::from)
+            .context("set OLLAYA_LIBRARY_PATH to an install's lib/ollaya")?;
+        let cuda = ["cuda_v13", "cuda_v12"]
+            .map(|pack| lib.join(pack).join(ollaya_runner::llama::CUDA_BACKEND))
+            .into_iter()
+            .find(|p| p.is_file());
+        let libs = Libraries {
+            dir: lib.join("llama"),
+            cuda,
+        };
+        let target = match device {
+            Device::Cuda(n) => Target::Device(format!("CUDA{n}")),
+            Device::Metal => Target::Device("MTL0".into()),
+            _ => Target::Cpu,
+        };
+        Box::new(LlamaModel::load(
+            &dir.join("model.gguf"),
+            &dir.join("decision.json"),
+            &libs,
+            &target,
+            None,
+        )?)
+    } else {
+        ollaya_runner::engine::load(&ModelFiles::dir(&dir), device, None)?
+    };
     println!("load {:.1}s on {device:?}", t.elapsed().as_secs_f64());
     let mut out = std::io::BufWriter::new(std::fs::File::create(&args[3])?);
     let (mut n, mut rejected) = (0, 0);

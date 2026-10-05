@@ -68,3 +68,25 @@ invalid and 3 as `TOO_MANY_OPTIONS`; 3 more are rejected by the API before any e
 | Model | Device | Token ids | Decisions | Option logits max | Probabilities max |
 |---|---|---|---|---|---|
 | 2b Q8_0 | x86-64 CPU | 573/573 identical to snap's | 573/573 | 7.4e-6 | 1.9e-6 |
+| 2b Q8_0 | CUDA, RTX 5090 | 573/573 identical to snap's | 573/573 | 7.4e-6 | 1.9e-6 |
+
+Five questions take 84 ms in the runner on the RTX 5090 (p50 of 20 requests, `parity_llama --latency`), one
+cold pass per question. snap shares the state's prefix between questions; the author reports 48 ms on an RTX
+4090 with Q4_K_M.
+
+## Quality
+
+- **Typed-decisions** (all 400 test states, 2,000 questions, argmax against the majority label, through
+  Ollaya's runtime: `logits` example and `quality_runtime.py`): **0.648**, ECE 0.062 at temperature 1. By type:
+  choice 0.655, score 0.600, noul 0.703.
+- **The author's figure** with snap itself: 0.655 on Q8_0 (snap 0.5.0, Apple M1 Max). Ollaya's runtime is 15
+  questions lower. The prompts are identical, so the gap lies in reading the answer: snap pools each letter's
+  space- and newline-prefixed tokens and evaluates the state once for all questions, Ollaya reads the bare
+  letter in one cold pass per question. The author reports that the checkpoint never trained on typed-decisions.
+
+## Limits
+
+- **Options.** 2 to 26 per choice and per score; a wider choice is `TOO_MANY_OPTIONS`.
+- **Context.** 8,192 tokens per question, snap's default; a longer prompt is rejected, not cut.
+- **Memory.** About 3 GB for the weights plus the context.
+- **Languages.** English and Italian, the model card's.

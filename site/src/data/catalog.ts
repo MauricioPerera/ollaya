@@ -280,6 +280,20 @@ const overlays: Record<string, ModelOverlay> = {
       '4b': { summary: "JevK5 v0.3 (4B), Q8_0 GGUF, with the author's temperature 1.22: 0.625 on typed decisions; up to 16 options per question." },
     },
   },
+  snap: {
+    stats: { tag: 'snap:2b', accuracy: 0.648 },
+    title: 'snap',
+    description:
+      "logitlab's snap1-2b: MiniCPM5-2B fine-tuned to read one option letter after the prompt of emnlmn's snap engine. Ollaya runs the author's Q8_0 GGUF on llama.cpp with snap's own prompt, on NVIDIA GPUs, Apple silicon or the CPU.",
+    publisher: { name: 'logitlab', url: 'https://huggingface.co/logitlab' },
+    capabilities: ['decision', 'fine-tuned', 'gguf'],
+    keywords: ['snap', 'snap1', 'minicpm', 'minicpm5', 'gguf', 'llama.cpp', 'llm', 'decision', 'classification', 'typesafe', 'jev', 'system one'],
+    rank: 17,
+    tags: {
+      latest: { summary: 'Same as snap:2b.' },
+      '2b': { summary: "snap1-2b (MiniCPM5-2B), Q8_0 GGUF, raw probabilities: 0.648 on typed decisions; up to 26 options per question." },
+    },
+  },
   gliclass: {
     stats: { tag: 'gliclass:large', accuracy: 0.477, latencyMs: 14.7 },
     title: 'GLiClass',
