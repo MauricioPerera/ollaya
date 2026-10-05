@@ -243,8 +243,18 @@ pub fn show(store: &Store, info: &ModelInfo) -> ShowResponse {
             let q = serde_json::to_string_pretty(q).unwrap_or_default();
             modelfile.push_str(&format!("QUESTIONS \"\"\"\n{q}\n\"\"\"\n"));
         }
+        // A calibration layer the model shares with its parent is inherited: FROM brings it back.
+        let parent_calibration = ModelName::parse(&from)
+            .ok()
+            .and_then(|n| store.read_manifest(&n).ok().flatten())
+            .and_then(|p| {
+                p.manifest
+                    .layer(media::CALIBRATION)
+                    .map(|d| d.digest.clone())
+            });
         if let Some(calibration) = manifest
             .layer(media::CALIBRATION)
+            .filter(|d| parent_calibration.as_ref() != Some(&d.digest))
             .and_then(|d| store.read_blob_json::<Value>(d).ok())
             .and_then(|calibration| {
                 // The create API would discard fields such as temperature_map and temperature_range.

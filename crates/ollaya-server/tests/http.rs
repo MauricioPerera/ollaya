@@ -1198,6 +1198,22 @@ async fn create_copy_delete() {
         serde_json::from_str::<Value>(exported_calibration).unwrap(),
         calibration
     );
+    // A model derived from triage without its own calibration shares triage's layer: FROM brings
+    // it back, so the Modelfile leaves it out, even though it would round-trip.
+    d.client
+        .create(
+            &serde_json::from_value(json!({"model": "triage-child", "from": "triage"})).unwrap(),
+            |_| {},
+        )
+        .await
+        .unwrap();
+    let child = d.client.show("triage-child").await.unwrap();
+    assert!(child.modelfile.contains("FROM triage"));
+    assert!(
+        !child.modelfile.contains("CALIBRATION"),
+        "an inherited calibration stays inherited: {}",
+        child.modelfile
+    );
     let models = d.client.models().await.unwrap();
     assert_eq!(
         models
