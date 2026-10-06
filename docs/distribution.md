@@ -531,6 +531,13 @@ $env:OLLAYA_NO_CUDA = '1'; irm https://ollaya.dev/install.ps1 | iex   # CPU only
   earlier versions are deleted. Otherwise `lib\ollaya` is replaced as a whole, or removed when no pack
   is wanted (`OLLAYA_NO_CUDA=1`). The old server is stopped first, since its runners hold files in
   the pack.
+- **Files in use:** Windows cannot delete a running program or a library one has loaded, such as
+  the `ollaya.exe` that runs `ollaya update` and its `DirectML.dll` (#58), but it can rename one
+  within the volume. So `install.ps1` moves what it replaces into `.ollaya-old` in the install
+  folder, and at the end of every install deletes what is no longer in use there; the rest goes
+  with the next install. Programs it could not stop (a server on another port, `ollaya mcp` under
+  an AI app) keep running the old files until they restart. Only the contents of `bin` and `share`
+  move, not the folders, since `bin` may be a terminal's current directory.
 - **Processes:** the CLI starts the server detached and without a console window, and the server
   starts runners with `CREATE_NO_WINDOW`. `ollaya stop` checks with `tasklist` that the PID file's
   process is `ollaya.exe`, then ends it and its runners with `taskkill /T /F`. A detached process
