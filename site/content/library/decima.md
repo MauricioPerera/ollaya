@@ -1,6 +1,6 @@
 Decima by [A. M. Madani](https://huggingface.co/amyrmahdy) is a family of multilingual decision models built on a late-interaction scorer. The state and each option are encoded on their own, and every option reads the state to get its score, so the order of the options never changes the answer. Score questions go through an ordinal head. It never generates text.
 
-> Needs an Ollaya release that runs the `decima-late-interaction-v1` layout.
+> Needs Ollaya 0.11.0 or newer, the first release that runs the `decima-late-interaction-v1` layout.
 
 ## Models
 
