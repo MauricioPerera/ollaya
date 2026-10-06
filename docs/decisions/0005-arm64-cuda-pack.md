@@ -112,9 +112,14 @@ A linux-arm64 CUDA 13 pack, with the layout and runner of ADR 0004:
     rows, raw label and option logits within 5.2e-5, decisions all agree.
   - `laya:en` fp16 (ONNX): 481 of 483 decisions, probabilities within 5.9e-2, and 374 of 483
     answers outside rounding. Decision and answer differences are reported here, not enforced;
-    encoding agreement still is. The x86-64 reference machine scores 482 of 483 decisions on the
-    same fixture and publishes no answer count to compare. Reduced precision changes decisions
-    near ties, which is why these are reported rather than enforced.
+    encoding agreement still is. The x86-64 reference machine, an RTX 4090 with the 0.10.0 CUDA 13
+    pack's ONNX Runtime 1.28.2, the same fixture and the same `model_dir.py` directory, scores 482
+    of 483 decisions, probabilities within 4.0e-2, and 371 of 483 answers outside rounding, the
+    same in three runs (2026-10-06). An answer is outside rounding when a number in Laya's whole
+    answer, probabilities included, is more than 2e-4 from the fp32 reference, or any other field
+    differs. fp16 moves probabilities by up to a few hundredths, so most answers fall outside on
+    either GPU. Reduced precision changes decisions near ties, which is why these are reported
+    rather than enforced.
 
   The two logit checks have room: the GGUF figure is about 81 times below its 1e-3 limit, and both
   `decider` figures about 19 times below theirs. The other criteria demand exact agreement and
