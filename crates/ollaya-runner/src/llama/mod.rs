@@ -373,20 +373,17 @@ fn gpus(api: &Api) -> Vec<Gpu> {
     }
 }
 
-/// A CUDA device wins over Vulkan, and a discrete GPU wins over an integrated one. The backend
+/// A CUDA device wins over Vulkan, then the discrete GPU with the most free memory. The backend
 /// registry may list Vulkan first because it is bundled with the Windows CPU libraries, while
-/// CUDA is loaded separately from the optional GPU pack.
+/// CUDA is loaded separately from the optional GPU pack. An integrated GPU of another backend
+/// (Vulkan on an Intel or AMD APU) shares system memory and is not shown to beat the CPU, so it
+/// takes an explicit `OLLAYA_DEVICE=vulkan:<n>`. CUDA's integrated devices (the GB10 of a DGX
+/// Spark, which llama.cpp reports as integrated) and Metal stay eligible.
 fn auto_gpu(found: &[Gpu]) -> Option<&Gpu> {
-    found.iter().max_by_key(|g| {
-        let priority = if g.name.starts_with("CUDA") {
-            3
-        } else if g.kind == ffi::DEVICE_TYPE_GPU {
-            2
-        } else {
-            1
-        };
-        (priority, g.free_mib)
-    })
+    found
+        .iter()
+        .filter(|g| g.name.starts_with("CUDA") || g.kind == ffi::DEVICE_TYPE_GPU)
+        .max_by_key(|g| (g.name.starts_with("CUDA"), g.free_mib))
 }
 
 /// Why llama.cpp's CUDA backend cannot run on the device named `dev` (`CUDA0`), or `None` when it
@@ -1450,7 +1447,7 @@ mod tests {
     }
 
     #[test]
-    fn auto_prefers_cuda_and_discrete_gpus_even_when_vulkan_is_registered_first() {
+    fn auto_prefers_cuda_then_discrete_gpus_and_leaves_integrated_vulkan_out() {
         let gpu = |name: &str, kind, free_mib| Gpu {
             handle: std::ptr::null_mut(),
             name: name.into(),
@@ -1465,7 +1462,13 @@ mod tests {
         ];
         assert_eq!(auto_gpu(&found).unwrap().name, "CUDA0");
         assert_eq!(auto_gpu(&found[..2]).unwrap().name, "Vulkan1");
-        assert_eq!(auto_gpu(&found[..1]).unwrap().name, "Vulkan0");
+        // An integrated Vulkan GPU alone: the CPU, unless OLLAYA_DEVICE names it.
+        assert!(auto_gpu(&found[..1]).is_none());
+        // A DGX Spark's GB10 is an integrated CUDA device; Apple silicon's Metal reports a GPU.
+        let spark = [gpu("CUDA0", ffi::DEVICE_TYPE_IGPU, 100_000)];
+        assert_eq!(auto_gpu(&spark).unwrap().name, "CUDA0");
+        let mac = [gpu("MTL0", ffi::DEVICE_TYPE_GPU, 20_000)];
+        assert_eq!(auto_gpu(&mac).unwrap().name, "MTL0");
     }
 
     #[test]
