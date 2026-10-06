@@ -233,6 +233,7 @@ const scoreboard: { tag: string; acc: number; ms: number; pick?: boolean; note?:
   { tag: 'jeeves:9b', acc: 0.68, ms: 838 },
   { tag: 'kev:4b', acc: 0.669, ms: 354 },
   { tag: 'nimble:9b', acc: 0.665, ms: 2297 },
+  { tag: 'snap:2b', acc: 0.648, ms: 68 },
   { tag: 'jevk5:4b', acc: 0.625, ms: 105 },
   { tag: 'decider:2b', acc: 0.591, ms: 190 },
   { tag: 'nli', acc: 0.548, ms: 20 },

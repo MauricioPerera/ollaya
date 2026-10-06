@@ -57,7 +57,7 @@ and the same 20 rejections (14 one-option choices, 3 scores whose criteria are a
   reads no instructions.
 - **Readout.** The bare letter only (above).
 
-## Parity (measured 2026-10-05)
+## Parity (measured 2026-10-05, the RTX 4090 2026-10-06)
 
 Goldens: `python -m ollaya_convert.families.snap.goldens` takes the prompt token ids from snap's own export
 (the author's code, not a port) and evaluates them on a stock `llama-server` of the pinned build (b11146) with
@@ -69,10 +69,19 @@ invalid and 3 as `TOO_MANY_OPTIONS`; 3 more are rejected by the API before any e
 |---|---|---|---|---|---|
 | 2b Q8_0 | x86-64 CPU | 573/573 identical to snap's | 573/573 | 7.4e-6 | 1.9e-6 |
 | 2b Q8_0 | CUDA, RTX 5090 | 573/573 identical to snap's | 573/573 | 7.4e-6 | 1.9e-6 |
+| 2b Q8_0 | CUDA, RTX 4090 | 573/573 identical to snap's | 573/573 | 7.3e-6 | 1.9e-6 |
 
-Five questions take 84 ms in the runner on the RTX 5090 (p50 of 20 requests, `parity_llama --latency`), one
-cold pass per question. snap shares the state's prefix between questions; the author reports 48 ms on an RTX
-4090 with Q4_K_M.
+The RTX 4090's reference is the same prompts replayed on stock `llama-server` b11146 on that GPU
+(`llm_common.replay`), since CUDA rounds differently from one GPU to another: against the RTX 5090's goldens
+the RTX 4090 differs by up to 0.28 in option logits and on 8 of 573 decisions, measured and not gated.
+
+Five questions take 84 ms in the runner on the RTX 5090 and 65 ms on the RTX 4090 (p50 of 20 requests,
+`parity_llama --latency`), one cold pass per question. snap shares the state's prefix between questions; the
+author reports 48 ms on an RTX 4090 with Q4_K_M.
+
+RTX 4090, HTTP API (Ollaya 0.10.0, Q8_0 on CUDA): the triage preset (five questions, 606 prompt tokens) takes
+68 ms at the median of 15 warm requests on one message, and 67 ms over 20 different messages
+(`results/runs/2026-10-06-latency-rtx4090-cuda-extra.json`).
 
 ## Quality
 

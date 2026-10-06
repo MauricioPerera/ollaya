@@ -281,7 +281,7 @@ const overlays: Record<string, ModelOverlay> = {
     },
   },
   snap: {
-    stats: { tag: 'snap:2b', accuracy: 0.648 },
+    stats: { tag: 'snap:2b', accuracy: 0.648, latencyMs: 68 },
     title: 'snap',
     description:
       "logitlab's snap1-2b: MiniCPM5-2B fine-tuned to read one option letter after the prompt of emnlmn's snap engine. Ollaya runs the author's Q8_0 GGUF on llama.cpp with snap's own prompt, on NVIDIA GPUs, Apple silicon or the CPU.",
