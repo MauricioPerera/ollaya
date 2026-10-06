@@ -241,6 +241,7 @@ const scoreboard: { tag: string; acc: number; ms: number; pick?: boolean; note?:
   { tag: 'gliclass', acc: 0.477, ms: 15 },
   { tag: 'kev:0.8b', acc: 0.46, ms: 128 },
   { tag: 'von', acc: 0.447, ms: 23 },
+  { tag: 'decima:small', acc: 0.432, ms: 7 },
   { tag: 'laya:en', acc: 0.361, ms: 10 },
   { tag: 'clm:8b', acc: 0.357, ms: 149, note: 'questions cached' },
 ]
@@ -384,8 +385,8 @@ const VS_TICKS = [0.55, 0.6, 0.65, 0.7, 0.75, 0.8]
 const vsPos = (a: number) => `${(((Math.min(Math.max(a, VS_MIN), VS_MAX) - VS_MIN) / (VS_MAX - VS_MIN)) * 100).toFixed(2)}%`
 
 const vsFeatures: { label: string; ollaya: string; ollama: string }[] = [
-  { label: 'Decision models', ollaya: '17 families: encoders (laya, nli, gliclass, von) and decoders (winnow, clef, kev, decider, nimble, jeb, jeeves, cygnet, snap and more)', ollama: 'Nimble and Tev1, decoders only' },
-  { label: 'Small encoders (milliseconds, CPU-friendly)', ollaya: 'laya, nli, gliclass, von', ollama: 'None' },
+  { label: 'Decision models', ollaya: '18 families: encoders (laya, nli, gliclass, von, decima) and decoders (winnow, clef, kev, decider, nimble, jeb, jeeves, cygnet, snap and more)', ollama: 'Nimble and Tev1, decoders only' },
+  { label: 'Small encoders (milliseconds, CPU-friendly)', ollaya: 'laya, nli, gliclass, von, decima', ollama: 'None' },
   { label: 'Probabilities', ollaya: "Calibrated with each author's fitted temperature, refittable in a Modelfile", ollama: 'Raw softmax; documented as uncalibrated' },
   { label: 'Options per question', ollaya: 'Up to 255, as TypeSafe', ollama: 'Up to 26' },
   { label: 'Questions per request', ollaya: 'Up to 256, as TypeSafe', ollama: 'Up to 64' },

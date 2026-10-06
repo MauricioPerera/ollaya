@@ -563,4 +563,34 @@ CATALOG = {
                   "CUDA (RTX 4090): 593 questions, every decision the same, option logits within 7.7e-6 and "
                   "probabilities within 1.6e-6. The prompts are byte-identical to the author's jevk5.prompt.",
     },
+    "decima": {
+        "namespace": "library",
+        "model": "decima",
+        "family": "decima",
+        "author": "A. M. Madani (amyrmahdy)",
+        "license": "Apache-2.0",
+        "license_text": ("Decima-small by A. M. Madani (https://huggingface.co/amyrmahdy/decima-small, "
+                         "https://github.com/amyrmahdy/decima), Apache-2.0.\n"
+                         "Base model: multilingual-e5-small by intfloat "
+                         "(https://huggingface.co/intfloat/multilingual-e5-small), MIT License.\n"
+                         "Licensed under the Apache License, Version 2.0.\n\n") + LICENSE_APACHE,
+        "tags": {
+            # v1.1.1 (HF tag v1.1.1, GitHub tag v1.1.1 = 2df60942): the fp32 PyTorch checkpoint under
+            # pytorch/, the encoder and the late-interaction head in two files. The author's int8 ONNX
+            # export is not used.
+            "small": dict(_wl("decima-small", "amyrmahdy/decima-small", "2e7f4d0757df0215f48f2a9b2b589e1f3a6348ed",
+                              "A. M. Madani's Decima-small 1.1: multilingual-e5-small with a late-interaction "
+                              "scorer that reads every option against the state, and an ordinal head for "
+                              "scores, with the author's temperature. 122M parameters; fast on a CPU.",
+                              "122M", 512, ["multilingual"], wl_dir=os.path.join(OUT, "decima-small"),
+                              weights={"model.safetensors": "pytorch/encoder/model.safetensors",
+                                       "head.safetensors": "pytorch/head.safetensors"}),
+                         tokenizer="pytorch/encoder/tokenizer.json"),
+        },
+        "aliases": {"latest": "small"},
+        "parity": "Ollaya's Rust runtime matches the author's own code (decima/model.py and systemone.py at v1.1.1, "
+                  "fp32) on 581 questions from 122 requests, on CPU and CUDA (RTX 4090 and RTX 5090): identical "
+                  "token rows, the same 3 truncated states and 18 rejected requests, the same decision on every "
+                  "question, scores within 1.2e-5 and probabilities within 2.3e-6.",
+    },
 }

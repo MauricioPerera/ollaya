@@ -308,6 +308,20 @@ const overlays: Record<string, ModelOverlay> = {
       large: { summary: 'GLiClass instruct large v1.0 (DeBERTa-v3-large backbone), Apache-2.0.' },
     },
   },
+  decima: {
+    stats: { tag: 'decima:small', accuracy: 0.432, latencyMs: 7.3 },
+    title: 'Decima',
+    description:
+      "A. M. Madani's Decima-small: multilingual-e5-small (122M) with a late-interaction scorer that reads every option against the state, so option order never changes the answer, and an ordinal head for scores. Fast on a CPU.",
+    publisher: { name: 'A. M. Madani', url: 'https://huggingface.co/amyrmahdy' },
+    capabilities: ['decision', 'multilingual', 'fine-tuned'],
+    keywords: ['decima', 'e5', 'multilingual-e5-small', 'late interaction', 'encoder', 'small', 'cpu', 'multilingual', 'decision', 'classification', 'typesafe', 'jev', 'system one'],
+    rank: 18,
+    tags: {
+      latest: { summary: 'Same as decima:small.' },
+      small: { summary: 'Decima-small 1.1 (multilingual-e5-small, 122M), fp32: 0.432 on typed decisions; 146 ms for five questions on a CPU.' },
+    },
+  },
 }
 
 /**

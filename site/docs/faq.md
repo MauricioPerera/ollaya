@@ -24,7 +24,7 @@ Ollama 0.35 (September 2026) added `/v1/systemone` for two decoder models, Bespo
 
 | | Ollaya | Ollama 0.35 |
 |---|---|---|
-| Models | 16 families: encoders (`laya`, `nli`, `gliclass`, `von`) and decoders (`winnow`, `clef`, `kev`, `decider`, `nimble`, `jeb`, `jeeves`, `cygnet` and more) | Nimble (9B) and Tev1 (4B, 0.8B) |
+| Models | 18 families: encoders (`laya`, `nli`, `gliclass`, `von`, `decima`) and decoders (`winnow`, `clef`, `kev`, `decider`, `nimble`, `jeb`, `jeeves`, `cygnet`, `snap` and more) | Nimble (9B) and Tev1 (4B, 0.8B) |
 | Encoders | Read every question in one forward pass. `laya:en` answers five questions in 8 to 10 ms on an RTX 4090 | Not supported |
 | Probabilities | Calibrated with each model's fitted temperatures, which you can refit on your own data in a [Modelfile](/docs/modelfile#calibration) | Softmax of the raw label scores. Ollama documents `confidence` as uncalibrated |
 | Limits | TypeSafe's: 1 to 256 questions, 2 to 255 options, 2 to 10 score levels | 1 to 64 questions, 2 to 26 options and score levels, a 64 KiB request body |
@@ -53,6 +53,7 @@ Open decision models from these families. See [Models](/search), which compares 
 - **`decision`** from the vLLM Semantic Router contributors: `decision:eos`, Decision 1.0 Eos, a fully fine-tuned Qwen3.5-0.8B with an endpoint head that scores every option at its last token, calibrated, with rows of up to 16,384 tokens.
 - **`qwen3guard`** from the Qwen team: a safety guard in 119 languages. It answers its own built-in questions (safe, controversial or unsafe, and the unsafe category), so you send it only the text.
 - **`von`** from Victor Hugo Panisa: Von 1.1 on ModernBERT-large, which scores every option at its own marker in one pass and reads states of up to 8,192 tokens.
+- **`decima`** from A. M. Madani: Decima-small 1.1, multilingual-e5-small (122M) with a late-interaction scorer that reads every option against the state, so the order of the options never changes the answer. It is the fastest model on a CPU: 146 ms for five questions.
 - **`clm`** from Contrastive-LM: CLM-v0.1-8B, which embeds the state and each option with Qwen3-8B and picks the option closest to the state through two trained heads. Questions and options are cached, so repeated ones are nearly free. It scores 0.357 on typed decisions; its authors built it for agent, game and tool-calling states.
 - **`jevk5`** from alibiserikbay: JevK5 v0.3, a Qwen3.5-4B fine-tune published as GGUF files. Ollaya runs the author's 4B Q8_0 file on llama.cpp, with up to 16 options per question.
 
