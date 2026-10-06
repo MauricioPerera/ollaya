@@ -1,0 +1,151 @@
+{
+ "schema": 1,
+ "suite": "parity",
+ "date": "2026-10-01",
+ "machine": "rtx-4090",
+ "os": "windows",
+ "ollaya": "0.8.0 merged with PR #27 (Vulkan), parity_llama from the release workflow's dry run",
+ "llama_cpp": "b11146",
+ "protocol": {
+  "reference": "stock llama-server of the same llama.cpp build on the same device (ADR 0003), prompts from the family's Python reference of the author's prompt",
+  "gate": "identical prompt ids and decisions, option logits within 1e-3",
+  "latency": "parity_llama --latency: 20 requests of 5 questions each through the runtime (no HTTP)"
+ },
+ "results": [
+  {
+   "model": "winnow:e4b",
+   "device": "vulkan",
+   "gpu": "NVIDIA GeForce RTX 4090",
+   "questions": 505,
+   "rejected_requests": 15,
+   "decisions_same": 505,
+   "max_logit_diff": 1.14e-05,
+   "max_prob_diff": 2.995e-06,
+   "seconds": 22.2,
+   "p50_ms": 148.6,
+   "pass": true
+  },
+  {
+   "model": "winnow:e4b",
+   "device": "cuda",
+   "gpu": "NVIDIA GeForce RTX 4090",
+   "questions": 505,
+   "rejected_requests": 15,
+   "decisions_same": 505,
+   "max_logit_diff": 1.288e-05,
+   "max_prob_diff": 2.984e-06,
+   "seconds": 12.7,
+   "p50_ms": 102.6,
+   "pass": true,
+   "reference_note": "the Linux CUDA goldens"
+  },
+  {
+   "model": "jeb:9b",
+   "device": "vulkan",
+   "gpu": "NVIDIA GeForce RTX 4090",
+   "questions": 494,
+   "rejected_requests": 19,
+   "decisions_same": 494,
+   "max_logit_diff": 7.634e-06,
+   "max_prob_diff": 2.232e-06,
+   "seconds": 29.0,
+   "p50_ms": 249.6,
+   "pass": true
+  },
+  {
+   "model": "jeb:9b",
+   "device": "cuda",
+   "gpu": "NVIDIA GeForce RTX 4090",
+   "questions": 494,
+   "rejected_requests": 19,
+   "decisions_same": 494,
+   "max_logit_diff": 7.654e-06,
+   "max_prob_diff": 2.108e-06,
+   "seconds": 17.2,
+   "p50_ms": 127.5,
+   "pass": true,
+   "reference_note": "the Linux CUDA goldens"
+  },
+  {
+   "model": "cygnet:12b",
+   "device": "vulkan",
+   "gpu": "NVIDIA GeForce RTX 4090",
+   "questions": 502,
+   "rejected_requests": 17,
+   "decisions_same": 502,
+   "max_logit_diff": 7.699e-06,
+   "max_prob_diff": 4.728e-07,
+   "seconds": 101.2,
+   "p50_ms": 862.3,
+   "pass": true
+  },
+  {
+   "model": "cygnet:12b",
+   "device": "cuda",
+   "gpu": "NVIDIA GeForce RTX 4090",
+   "questions": 502,
+   "rejected_requests": 17,
+   "decisions_same": 502,
+   "max_logit_diff": 7.689e-06,
+   "max_prob_diff": 4.071e-07,
+   "seconds": 30.5,
+   "p50_ms": 212.5,
+   "pass": true,
+   "reference_note": "the Linux CUDA goldens"
+  },
+  {
+   "model": "winnow:e4b",
+   "device": "cpu",
+   "cpu": "Intel Core i9-13900K",
+   "questions": 505,
+   "rejected_requests": 15,
+   "decisions_same": 502,
+   "max_logit_diff": 0.3263,
+   "max_prob_diff": 0.03677,
+   "seconds": 841.9,
+   "p50_ms": 4396.2,
+   "pass": false,
+   "reference_note": "against CPU goldens made on another machine and OS (no metadata kept); a CPU gate needs goldens from the same machine and build"
+  }
+ ],
+ "cross_device": {
+  "note": "The same reference prompts on different devices, compared with the RTX 4090's CUDA goldens: how much backends differ. Measured, not gated.",
+  "results": [
+   {
+    "model": "winnow:e4b",
+    "device": "cpu (x86-64)",
+    "questions": 505,
+    "decisions_same": 501,
+    "max_logprob_diff": 0.2788
+   },
+   {
+    "model": "winnow:e4b",
+    "device": "vulkan (RTX 4090)",
+    "questions": 505,
+    "decisions_same": 501,
+    "max_logprob_diff": 0.3232
+   },
+   {
+    "model": "jeb:9b",
+    "device": "vulkan (RTX 4090)",
+    "questions": 494,
+    "decisions_same": 492,
+    "max_logprob_diff": 0.3306
+   },
+   {
+    "model": "cygnet:12b",
+    "device": "cpu (i9-13900K, Windows)",
+    "questions": 502,
+    "decisions_same": 496,
+    "max_logprob_diff": 2.761
+   },
+   {
+    "model": "cygnet:12b",
+    "device": "vulkan (RTX 4090)",
+    "questions": 502,
+    "decisions_same": 497,
+    "max_logprob_diff": 1.402
+   }
+  ]
+ }
+}

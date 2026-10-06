@@ -3,10 +3,11 @@ import { GITHUB_URL } from '../site'
 import { Icon } from './Icon'
 import { Logo } from './Logo'
 
-export type NavKey = 'models' | 'docs' | 'download'
+export type NavKey = 'models' | 'results' | 'docs' | 'download'
 
 const links: { key: NavKey | 'github'; href: string; label: string }[] = [
   { key: 'models', href: '/search', label: 'Models' },
+  { key: 'results', href: '/results', label: 'Results' },
   { key: 'docs', href: '/docs', label: 'Docs' },
   { key: 'github', href: GITHUB_URL, label: 'GitHub' },
 ]

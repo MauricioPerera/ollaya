@@ -34,12 +34,12 @@ export function OutlinePill({ children }: { children: Child }) {
  * Copy-to-clipboard button. public/static/app.js copies the visible <pre> inside the closest
  * [data-copy-scope] and swaps the icon to a check mark for 2 seconds.
  */
-export function CopyButton({ class: cls = 'absolute top-2 right-2' }: { class?: string }) {
+export function CopyButton({ class: cls = 'copy-over absolute top-2 right-2' }: { class?: string }) {
   return (
     <button
       type="button"
       data-copy
-      class={`group inline-flex size-8 shrink-0 items-center justify-center rounded-md text-muted hover:bg-fill hover:text-fg ${cls}`}
+      class={`group inline-flex size-8 shrink-0 items-center justify-center rounded-md text-muted hover:text-fg ${cls}`}
       aria-label="Copy code"
     >
       <Icon name="copy" class="size-4 group-data-[copied]:hidden" />

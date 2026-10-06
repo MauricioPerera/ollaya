@@ -1,0 +1,158 @@
+{
+ "schema": 1,
+ "suite": "latency-triage",
+ "date": "2026-10-01T11:50:59Z",
+ "ollaya": "0.8.0",
+ "machine": "rtx-4090",
+ "machine_detail": {
+  "id": "rtx-4090",
+  "cpu": "13th Gen Intel(R) Core(TM) i9-13900K",
+  "threads": 24,
+  "gpus": [
+   {
+    "name": "NVIDIA GeForce RTX 4090",
+    "driver": "616.92",
+    "memory": "24564 MiB"
+   }
+  ],
+  "os": "Linux 6.18.33.2-microsoft-standard-WSL2"
+ },
+ "device": "cpu",
+ "protocol": {
+  "preset": "triage",
+  "questions": 5,
+  "states": 30,
+  "warm": 2,
+  "n": 10,
+  "client": "one request at a time over HTTP to /api/decide, timed by the client; each request a different short message, in turn"
+ },
+ "note": "",
+ "results": [
+  {
+   "model": "jeb:4b",
+   "questions": "triage",
+   "load_ms": 19892.5,
+   "first_request_ms": 27512.8,
+   "answered_by": "jeb:4b",
+   "p50_ms": 7485.2,
+   "p90_ms": 7652.3,
+   "min_ms": 7245.8,
+   "eval_p50_ms": 7478.7,
+   "input_tokens": 569,
+   "device": "cpu",
+   "precision": "Q8_0"
+  },
+  {
+   "model": "jeb:9b",
+   "questions": "triage",
+   "load_ms": 40661.3,
+   "first_request_ms": 52454.1,
+   "answered_by": "jeb:9b",
+   "p50_ms": 11893.7,
+   "p90_ms": 11951.6,
+   "min_ms": 11691.7,
+   "eval_p50_ms": 11887.5,
+   "input_tokens": 569,
+   "device": "cpu",
+   "precision": "Q8_0"
+  },
+  {
+   "model": "jeb:27b",
+   "questions": "triage",
+   "load_ms": 77452.5,
+   "first_request_ms": 102007.0,
+   "answered_by": "jeb:27b",
+   "p50_ms": 25214.8,
+   "p90_ms": 25735.5,
+   "min_ms": 24664.2,
+   "eval_p50_ms": 25209.0,
+   "input_tokens": 569,
+   "device": "cpu",
+   "precision": "Q4_K - MEDIUM"
+  },
+  {
+   "model": "nimble:9b",
+   "questions": "triage",
+   "load_ms": 73260.4,
+   "first_request_ms": 124548.5,
+   "answered_by": "nimble:9b",
+   "p50_ms": 50730.1,
+   "p90_ms": 50763.2,
+   "min_ms": 50512.4,
+   "eval_p50_ms": 50724.8,
+   "input_tokens": 2998,
+   "device": "cpu",
+   "precision": "F32"
+  },
+  {
+   "model": "jeeves:9b",
+   "questions": "triage",
+   "load_ms": 64561.6,
+   "first_request_ms": 84633.4,
+   "answered_by": "jeeves:9b",
+   "p50_ms": 19521.0,
+   "p90_ms": 19672.5,
+   "min_ms": 19393.0,
+   "eval_p50_ms": 19516.2,
+   "input_tokens": 503,
+   "device": "cpu",
+   "precision": "F32"
+  },
+  {
+   "model": "clm:8b",
+   "questions": "triage",
+   "load_ms": 62335.8,
+   "first_request_ms": 74157.3,
+   "answered_by": "clm:8b",
+   "p50_ms": 3951.8,
+   "p90_ms": 4175.1,
+   "min_ms": 3774.9,
+   "eval_p50_ms": 3946.2,
+   "input_tokens": 342,
+   "device": "cpu",
+   "precision": "F32"
+  },
+  {
+   "model": "kev:0.8b",
+   "questions": "triage",
+   "load_ms": 11979.8,
+   "first_request_ms": 13281.1,
+   "answered_by": "kev:0.8b",
+   "p50_ms": 1266.6,
+   "p90_ms": 1279.8,
+   "min_ms": 1228.8,
+   "eval_p50_ms": 1261.2,
+   "input_tokens": 283,
+   "device": "cpu",
+   "precision": "F32"
+  },
+  {
+   "model": "nli:deberta-v3-large",
+   "questions": "triage",
+   "load_ms": 7971.4,
+   "first_request_ms": 8784.7,
+   "answered_by": "nli:deberta-v3-large",
+   "p50_ms": 790.4,
+   "p90_ms": 797.1,
+   "min_ms": 750.7,
+   "eval_p50_ms": 784.2,
+   "input_tokens": 593,
+   "device": "cpu",
+   "precision": "F32"
+  },
+  {
+   "model": "nli:modernbert-large",
+   "questions": "triage",
+   "load_ms": 6029.9,
+   "first_request_ms": 6686.9,
+   "answered_by": "nli:modernbert-large",
+   "p50_ms": 594.5,
+   "p90_ms": 597.1,
+   "min_ms": 576.5,
+   "eval_p50_ms": 588.6,
+   "input_tokens": 447,
+   "device": "cpu",
+   "precision": "F32"
+  }
+ ]
+}

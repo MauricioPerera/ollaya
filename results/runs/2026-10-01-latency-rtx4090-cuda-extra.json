@@ -1,0 +1,158 @@
+{
+ "schema": 1,
+ "suite": "latency-triage",
+ "date": "2026-10-01T11:21:34Z",
+ "ollaya": "0.8.0",
+ "device": "cuda",
+ "protocol": {
+  "preset": "triage",
+  "questions": 5,
+  "states": 30,
+  "warm": 5,
+  "n": 20,
+  "client": "one request at a time over HTTP to /api/decide, timed by the client; each request a different short message, in turn"
+ },
+ "note": "nimble:9b and jeeves:9b were timed again the same day, after their weights in this model store were replaced with real files (ONNX Runtime refuses external data behind a symlink).",
+ "results": [
+  {
+   "model": "jeb:4b",
+   "questions": "triage",
+   "load_ms": 20041.6,
+   "first_request_ms": 20138.8,
+   "answered_by": "jeb:4b",
+   "p50_ms": 95.4,
+   "p90_ms": 96.1,
+   "min_ms": 92.9,
+   "eval_p50_ms": 91.4,
+   "input_tokens": 569,
+   "device": "cuda:0",
+   "precision": "Q8_0"
+  },
+  {
+   "model": "jeb:9b",
+   "questions": "triage",
+   "load_ms": 40371.0,
+   "first_request_ms": 40506.4,
+   "answered_by": "jeb:9b",
+   "p50_ms": 124.3,
+   "p90_ms": 125.6,
+   "min_ms": 122.6,
+   "eval_p50_ms": 120.2,
+   "input_tokens": 569,
+   "device": "cuda:0",
+   "precision": "Q8_0"
+  },
+  {
+   "model": "jeb:27b",
+   "questions": "triage",
+   "load_ms": 70732.0,
+   "first_request_ms": 71045.3,
+   "answered_by": "jeb:27b",
+   "p50_ms": 301.2,
+   "p90_ms": 302.9,
+   "min_ms": 289.6,
+   "eval_p50_ms": 297.1,
+   "input_tokens": 569,
+   "device": "cuda:0",
+   "precision": "Q4_K - MEDIUM"
+  },
+  {
+   "model": "nimble:9b",
+   "questions": "triage",
+   "load_ms": 75806.2,
+   "first_request_ms": 78122.6,
+   "answered_by": "nimble:9b",
+   "p50_ms": 2276.1,
+   "p90_ms": 2281.4,
+   "min_ms": 2263.9,
+   "eval_p50_ms": 2271.1,
+   "input_tokens": 2978,
+   "device": "cuda:0",
+   "precision": "F32"
+  },
+  {
+   "model": "jeeves:9b",
+   "questions": "triage",
+   "load_ms": 61873.9,
+   "first_request_ms": 62790.0,
+   "answered_by": "jeeves:9b",
+   "p50_ms": 864.1,
+   "p90_ms": 872.2,
+   "min_ms": 862.7,
+   "eval_p50_ms": 859.5,
+   "input_tokens": 503,
+   "device": "cuda:0",
+   "precision": "F32"
+  },
+  {
+   "model": "clm:8b",
+   "questions": "triage",
+   "load_ms": 67020.9,
+   "first_request_ms": 67368.0,
+   "answered_by": "clm:8b",
+   "p50_ms": 137.2,
+   "p90_ms": 138.2,
+   "min_ms": 134.0,
+   "eval_p50_ms": 132.1,
+   "input_tokens": 322,
+   "device": "cuda:0",
+   "precision": "F32"
+  },
+  {
+   "model": "kev:0.8b",
+   "questions": "triage",
+   "load_ms": 14822.0,
+   "first_request_ms": 15049.6,
+   "answered_by": "kev:0.8b",
+   "p50_ms": 132.5,
+   "p90_ms": 133.9,
+   "min_ms": 129.2,
+   "eval_p50_ms": 126.4,
+   "input_tokens": 288,
+   "device": "cuda:0",
+   "precision": "F32"
+  },
+  {
+   "model": "nli:deberta-v3-large",
+   "questions": "triage",
+   "load_ms": 8725.8,
+   "first_request_ms": 8775.1,
+   "answered_by": "nli:deberta-v3-large",
+   "p50_ms": 27.5,
+   "p90_ms": 28.6,
+   "min_ms": 26.6,
+   "eval_p50_ms": 21.9,
+   "input_tokens": 554,
+   "device": "cuda:0",
+   "precision": "F32"
+  },
+  {
+   "model": "nli:modernbert-large",
+   "questions": "triage",
+   "load_ms": 6288.0,
+   "first_request_ms": 6323.4,
+   "answered_by": "nli:modernbert-large",
+   "p50_ms": 22.5,
+   "p90_ms": 23.5,
+   "min_ms": 20.7,
+   "eval_p50_ms": 16.4,
+   "input_tokens": 408,
+   "device": "cuda:0",
+   "precision": "F32"
+  }
+ ],
+ "machine": "rtx-4090",
+ "machine_detail": {
+  "id": "rtx-4090",
+  "cpu": "13th Gen Intel(R) Core(TM) i9-13900K",
+  "threads": 24,
+  "gpus": [
+   {
+    "name": "NVIDIA GeForce RTX 4090",
+    "driver": "616.92",
+    "memory": "24564 MiB"
+   }
+  ],
+  "os": "Linux 6.18.33.2-microsoft-standard-WSL2"
+ }
+}

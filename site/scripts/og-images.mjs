@@ -5,13 +5,13 @@
 // The PNGs are committed, so the site build does not need a browser. Run this by hand after
 // changing a card or adding a model:
 //
-//   node scripts/og-images.mjs
+//   node scripts/og-images.mjs [og/results.png ...]
 //
 // It needs a Chromium: $CHROME, else Playwright's cached headless shell. Geist is downloaded from
 // Google Fonts, so it also needs the network (without it the cards fall back to system fonts).
 
 import { spawnSync } from 'node:child_process'
-import { existsSync, readdirSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -112,7 +112,27 @@ function page(body) {
 const top = (url) => `<div class="top"><div class="brand">${OWL}<span>ollaya</span></div><div class="url">${esc(url)}</div></div>`
 const command = (model) => `<div class="cmd"><span class="p">❯</span> <span class="c">ollaya</span> run ${esc(model)}</div>`
 
+/** The results card's numbers, from the newest public-benchmark run in ../results (as on /results). */
+function resultsCard() {
+  const dir = join(root, '..', 'results', 'runs')
+  const files = readdirSync(dir).filter((f) => f.includes('public-benchmark')).sort()
+  const run = JSON.parse(readFileSync(join(dir, files.at(-1)), 'utf8'))
+  const by = (server) => run.results.filter((r) => r.server === server).sort((a, b) => b.macro_accuracy - a.macro_accuracy)[0]
+  const best = by('ollaya')
+  const ollama = by('ollama')
+  const nimble = run.results.find((r) => r.server === 'ollaya' && r.model.startsWith('nimble'))
+  const nimbleOllama = run.results.find((r) => r.server === 'ollama' && r.model === 'nimble')
+  const ms = (r) => `${Math.round(r.median_ms)} ms`
+  return page(`${top('ollaya.dev/results')}
+      <div class="main"><span class="badge">Results · RTX 5090 · 3,880 questions</span><h1 style="margin-top:22px">Measured, not claimed.</h1>
+      <p class="text"><b style="color:#fafafa;font-weight:500">${esc(best.model)}</b>: ${best.macro_accuracy.toFixed(3)} accuracy at ${ms(best)}.
+      Ollama's best: ${ollama.macro_accuracy.toFixed(3)} at ${ms(ollama)}. Same Nimble weights: calibration error
+      ${nimble.pooled_ece.toFixed(3)} on Ollaya, ${nimbleOllama.pooled_ece.toFixed(3)} on Ollama.</p></div>
+      <div class="bottom"><div class="meta" style="text-align:left"><b>Accuracy · calibration · speed · parity</b><br>every model, on our own GPUs and CPUs, with the raw data</div></div>`)
+}
+
 const cards = [
+  { file: 'og/results.png', html: resultsCard() },
   {
     file: 'og.png',
     html: page(`${top('ollaya.dev')}
@@ -146,7 +166,9 @@ const bin = chrome()
 const tmp = await mkdtemp(join(tmpdir(), 'ollaya-og-'))
 try {
   await mkdir(join(out, 'og'), { recursive: true })
-  for (const card of cards) {
+  // `node scripts/og-images.mjs og/results.png` renders only the cards named.
+  const only = process.argv.slice(2)
+  for (const card of cards.filter((c) => !only.length || only.includes(c.file))) {
     const html = join(tmp, card.file.replace('/', '-') + '.html')
     await writeFile(html, card.html)
     const target = join(out, card.file)

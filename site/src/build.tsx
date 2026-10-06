@@ -26,6 +26,9 @@ import { HomePage } from './pages/home'
 import { LibraryRedirect, ModelPage, TagPage, TagsPage } from './pages/library'
 import { robotsTxt, sitemapXml } from './pages/meta'
 import { NotFoundPage } from './pages/notFound'
+import { accuracyScatter, ResultsPage, speedDots } from './pages/results'
+import { DotPlot, Scatter } from './components/charts'
+import { runs } from './data/results'
 import { SearchPage } from './pages/search'
 
 export interface BuildOptions {
@@ -73,6 +76,17 @@ function pages(origin: string): Page[] {
         nav: 'download',
       },
       render: () => <DownloadPage origin={origin} />,
+    },
+    {
+      url: '/results',
+      meta: {
+        title: 'Results',
+        description:
+          'Accuracy, calibration, speed and parity of every Ollaya model, measured on our own GPUs and CPUs, with Ollama on the same GPU. All numbers, with the raw data.',
+        nav: 'results',
+        ogImage: hasAsset('og/results.png') ? 'og/results.png' : undefined,
+      },
+      render: () => <ResultsPage />,
     },
     {
       url: '/docs',
@@ -131,6 +145,10 @@ export function fileForUrl(url: string): string {
   return url === '/' ? 'index.html' : `${url.slice(1)}.html`
 }
 
+async function toSvg(node: Child): Promise<string> {
+  return (await (node as Promise<string> | string)).toString()
+}
+
 async function toHtml(node: Child): Promise<string> {
   return `<!DOCTYPE html>${await (await (node as Promise<string> | string)).toString()}`
 }
@@ -163,6 +181,12 @@ export async function renderSite({ origin, assetVersions, stars }: BuildOptions)
   out.push({ path: 'robots.txt', body: robotsTxt(origin) })
   out.push({ path: 'sitemap.xml', body: sitemapXml(origin, all.map((p) => p.url)) })
   out.push({ path: 'search.json', body: `${JSON.stringify(searchIndex())}\n` })
+  // The measurements behind /results, as the tools wrote them (../results/runs), under /data so they do not shadow the /results page.
+  for (const { file, ...run } of runs) out.push({ path: `data/results/${file}`, body: `${JSON.stringify(run, null, 1)}\n` })
+  // Two charts as their own .svg files, for the README (light and dark through prefers-color-scheme).
+  out.push({ path: 'data/results/accuracy-speed.svg', body: `${await toSvg(<Scatter {...accuracyScatter()} standalone />)}\n` })
+  const speed = speedDots()
+  if (speed.rows.length) out.push({ path: 'data/results/speed.svg', body: `${await toSvg(<DotPlot {...speed} standalone />)}\n` })
 
   const seen = new Set<string>()
   for (const f of out) {

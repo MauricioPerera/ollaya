@@ -13,6 +13,8 @@ export const WINDOWS_APP_SIGNED = false
 export const ISSUES_URL = `${GITHUB_URL}/issues`
 /** Derived files (ONNX graphs, configs) of every model, mirrored on Hugging Face. No weights. */
 export const HF_URL = 'https://huggingface.co/ollaya-dev'
+/** The author's site, credited in the footer. */
+export const AUTHOR = { name: 'Mert Cobanov', url: 'https://cobanov.dev' }
 /** Planned features, tracked on GitHub. */
 export const MCP_ISSUE_URL = `${GITHUB_URL}/issues/1`
 export const SKILL_ISSUE_URL = `${GITHUB_URL}/issues/2`

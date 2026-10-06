@@ -7,6 +7,8 @@ export interface Status {
   running: boolean
   version: string | null
   url: string
+  /** Where the server this app started runs models (Windows and Linux): "GPU" or "CPU only". */
+  device: string | null
 }
 
 export interface LibraryTag {
@@ -41,6 +43,8 @@ export type Questions = Record<string, { type: string }>
 export interface Preset {
   name: string
   questions: Questions
+  /** False for a preset saved with `ollaya preset create`. */
+  builtin: boolean
 }
 
 export interface Answer {
@@ -84,6 +88,10 @@ export interface Backend {
   /** With neither `preset` nor `questions`, the model answers its built-in questions. */
   decide(model: string, state: string, preset: string | null, questions: string | null): Promise<DecideResponse>
   onPullProgress(handler: (p: PullProgress) => void): void
+  /** A newer Ollaya release than this app, or null. */
+  updateAvailable(): Promise<string | null>
+  /** Open the download page in the browser. */
+  openDownload(): Promise<void>
 }
 
 function tauri(): Backend {
@@ -104,6 +112,8 @@ function tauri(): Backend {
     onPullProgress: (handler) => {
       void t.event.listen<PullProgress>('pull-progress', (e) => handler(e.payload))
     },
+    updateAvailable: () => invoke('update_available'),
+    openDownload: () => invoke('open_download'),
   }
 }
 

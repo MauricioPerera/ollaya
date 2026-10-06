@@ -9,7 +9,7 @@
     "node": ">=22"
   },
   "scripts": {
-    "gen": "node scripts/gen-content.mjs && node scripts/gen-registry.mjs",
+    "gen": "node scripts/gen-content.mjs && node scripts/gen-registry.mjs && node scripts/gen-results.mjs",
     "typecheck": "npm run gen && tsc --noEmit",
     "build": "npm run typecheck && node scripts/build.mjs && node scripts/check.mjs",
     "dev": "npm run build && wrangler dev",

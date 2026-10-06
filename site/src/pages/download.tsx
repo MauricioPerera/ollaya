@@ -38,8 +38,23 @@ function Note({ children }: { children: Child }) {
   return <p class="mt-3 text-[13px] text-muted">{children}</p>
 }
 
-/** The desktop app: a download button and what the app does. */
-function DesktopApp({ file, label, extra, note }: { file: string; label: string; extra?: Child; note?: Child }) {
+/**
+ * The desktop app: a download button and what the app does. `cpuOnly`: the app bundles no GPU
+ * libraries on this platform, and uses the GPU through the command-line install (#44).
+ */
+function DesktopApp({
+  file,
+  label,
+  extra,
+  note,
+  cpuOnly,
+}: {
+  file: string
+  label: string
+  extra?: Child
+  note?: Child
+  cpuOnly?: boolean
+}) {
   return (
     <Step title="Desktop app">
       <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -53,6 +68,12 @@ function DesktopApp({ file, label, extra, note }: { file: string; label: string;
         Start and stop the server, download models and try them, in one window. Your code talks to the same local API;
         for the <code class="font-mono">ollaya</code> command, install the command line too.
       </Note>
+      {cpuOnly && (
+        <Note>
+          On its own the app runs models on the CPU. With an NVIDIA GPU, install the command line as well: the app
+          then starts the server from it, on the GPU, and its status line says which one is running.
+        </Note>
+      )}
       {note && <Note>{note}</Note>}
     </Step>
   )
@@ -83,7 +104,7 @@ export function DownloadPage({ origin }: { origin: string }) {
       <p class="mt-4 text-center text-lg text-body">A desktop app and a command line for macOS, Windows and Linux, or a Docker image.</p>
 
       <div class="mt-10">
-        <div role="tablist" aria-label="Platform" data-os-tabs class="mx-auto flex w-fit gap-1 rounded-full border border-line p-1">
+        <div role="tablist" aria-label="Platform" data-os-tabs class="mx-auto flex w-full max-w-md gap-1 rounded-full border border-line p-1 sm:w-fit">
           {tabs.map((t) => {
             const on = t.id === selected
             return (
@@ -94,7 +115,7 @@ export function DownloadPage({ origin }: { origin: string }) {
                 aria-controls={`os-panel-${t.id}`}
                 aria-selected={on ? 'true' : 'false'}
                 tabindex={on ? 0 : -1}
-                class="rounded-full px-5 py-1.5 text-sm font-medium text-muted hover:text-fg aria-selected:bg-btn aria-selected:text-btn-fg"
+                class="flex-1 rounded-full px-2 py-1.5 text-sm font-medium text-muted hover:text-fg aria-selected:bg-btn aria-selected:text-btn-fg sm:flex-none sm:px-5"
               >
                 {t.label}
               </button>
@@ -132,6 +153,7 @@ export function DownloadPage({ origin }: { origin: string }) {
             <DesktopApp
               file="Ollaya-linux-x86_64.AppImage"
               label="Download the AppImage"
+              cpuOnly
               extra={
                 <a href={`${LATEST_DOWNLOAD}/Ollaya-linux-amd64.deb`} class={`text-sm ${textLink}`}>
                   or the .deb
@@ -144,6 +166,7 @@ export function DownloadPage({ origin }: { origin: string }) {
             <DesktopApp
               file="Ollaya-windows-x64-setup.exe"
               label="Download for Windows"
+              cpuOnly
               note={
                 WINDOWS_APP_SIGNED
                   ? undefined
@@ -170,7 +193,7 @@ export function DownloadPage({ origin }: { origin: string }) {
             <Requirements
               items={[
                 'Windows 10 or 11 on a 64-bit x86 PC. Runs on the CPU.',
-                'An NVIDIA GPU is optional: driver R527 or newer (CUDA 13 from R580, CUDA 12 before and for GTX 10-series and Volta cards). The command line uses it; the desktop app runs on the CPU.',
+                'An NVIDIA GPU is optional: driver R527 or newer (CUDA 13 from R580, CUDA 12 before and for GTX 10-series and Volta cards). The command line uses it; the desktop app uses it when the command line is installed too, and the CPU otherwise.',
                 <>
                   WSL 2 with the Linux installer works too. The server in WSL answers Windows programs at{' '}
                   <code class="font-mono">localhost:{LOCAL_PORT}</code>.

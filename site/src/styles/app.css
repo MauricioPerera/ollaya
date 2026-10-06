@@ -39,6 +39,19 @@
   --color-tok-key: #0550ae;
   --color-tok-fn: #953800;
   --color-tok-punct: #6e7781;
+  /*
+   * Data colours, taken from the terminal's syntax palette above so charts and code read as one
+   * system. Colour only ever carries data: Ollaya against another server (us, them), a GPU against
+   * a CPU, Vulkan, and a parity check passing or failing. The rest stays ink. Which machine a
+   * point belongs to is its mark (a dot or a ring), not another colour.
+   */
+  --color-us: #0969da;
+  --color-them: #bc4c00;
+  --color-gpu: #0969da;
+  --color-cpu: #bc4c00;
+  --color-vulkan: #8250df;
+  --color-pass: #1a7f37;
+  --color-fail: #cf222e;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -71,6 +84,13 @@
     --color-tok-key: #79c0ff;
     --color-tok-fn: #ffc36b;
     --color-tok-punct: #8b949e;
+    --color-us: #4493f8;
+    --color-them: #f0883e;
+    --color-gpu: #4493f8;
+    --color-cpu: #f0883e;
+    --color-vulkan: #ab7df8;
+    --color-pass: #3fb950;
+    --color-fail: #f85149;
   }
 }
 
@@ -249,6 +269,16 @@
   .prose td code {
     white-space: nowrap;
   }
+  /* On a phone a table keeps readable columns and scrolls inside its frame (.table-wrap) rather
+     than squeezing every column to a few words per line. */
+  @media (max-width: 639px) {
+    .prose td {
+      min-width: 8.5rem;
+    }
+    .prose td:first-child {
+      min-width: 6.5rem;
+    }
+  }
   .prose img {
     max-width: 100%;
   }
@@ -284,6 +314,21 @@
   }
 }
 
+/* A code block's copy button sits over the code: an opaque face with a short fade to its left,
+   so a long line scrolling under it stays readable instead of running into the icon. */
+@layer components {
+  .copy-over {
+    background-color: var(--color-code);
+    /* A fade on its left, and the 0.5rem between it and the block's edge filled. */
+    box-shadow:
+      -14px 0 10px -2px var(--color-code),
+      8px 0 0 0 var(--color-code);
+  }
+  .copy-over:hover {
+    background-color: color-mix(in oklab, var(--color-fg) 6%, var(--color-code));
+  }
+}
+
 /* Hero terminal: a soft lift off the page, bars that fill, rows that appear in turn. */
 @layer components {
   .term-glow {
@@ -291,8 +336,7 @@
       0 1px 0 0 rgb(255 255 255 / 0.04) inset,
       0 24px 64px -24px rgb(0 0 0 / 0.25);
   }
-  .term-bar,
-  .lat-bar {
+  .term-bar {
     background: linear-gradient(90deg, var(--color-tok-key), var(--color-tok-string));
   }
   @media (prefers-color-scheme: dark) {

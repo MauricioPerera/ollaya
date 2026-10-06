@@ -1,0 +1,79 @@
+{
+ "rtx-5090": {
+  "label": "RTX 5090 desktop",
+  "headline": "RTX 5090",
+  "kind": "ours",
+  "cpu": "AMD Ryzen Threadripper 3960X (24 cores, 48 threads)",
+  "gpus": [
+   "NVIDIA GeForce RTX 5090, 32 GB"
+  ],
+  "ram_gb": 64,
+  "os": "Windows 11 Enterprise LTSC, Ubuntu 24.04 under WSL2",
+  "driver": "NVIDIA 596.21 (CUDA 13.2)",
+  "uses": [
+   "Bespoke Labs' public benchmark, with Ollama on the same GPU",
+   "Speed of every model on the RTX 5090 and on the Threadripper",
+   "CUDA on Blackwell (sm_120)"
+  ]
+ },
+ "rtx-4090": {
+  "label": "RTX 4090 desktop",
+  "headline": "RTX 4090",
+  "kind": "ours",
+  "cpu": "Intel Core i9-13900K (24 cores, 32 threads)",
+  "gpus": [
+   "NVIDIA GeForce RTX 4090, 24 GB",
+   "Intel UHD Graphics 770"
+  ],
+  "ram_gb": 64,
+  "os": "Windows 11 Pro, Ubuntu 24.04 under WSL2 (24 of the 32 threads)",
+  "driver": "NVIDIA 616.92",
+  "uses": [
+   "Parity on CUDA, under Linux and Windows, and on Vulkan",
+   "Speed of every model on the RTX 4090 and on the i9-13900K",
+   "Typed-decisions quality of every model",
+   "Windows: CUDA, Vulkan and the desktop app"
+  ]
+ },
+ "mac-m4-pro": {
+  "label": "Mac mini (M4 Pro)",
+  "headline": "M4 Pro",
+  "kind": "ours",
+  "cpu": "Apple M4 Pro (12 cores: 8 performance, 4 efficiency)",
+  "gpus": [
+   "Apple M4 Pro GPU, 16 cores"
+  ],
+  "ram_gb": 24,
+  "os": "macOS 27",
+  "uses": [
+   "Parity on the Apple GPU (MLX) and the Apple CPU",
+   "The macOS app and the menu bar"
+  ]
+ },
+ "community-arc-140t": {
+  "label": "Intel Arc 140T laptop (community)",
+  "cpu": "Intel Core Ultra 9 285H",
+  "gpus": [
+   "Intel Arc 140T (integrated)"
+  ],
+  "ram_gb": 64,
+  "os": "Windows",
+  "driver": "Intel 32.0.101.8860",
+  "by": "MauricioPerera",
+  "source": "https://github.com/ollaya-dev/ollaya/pull/27",
+  "kind": "community",
+  "headline": "Arc 140T"
+ },
+ "community-rx-9070": {
+  "label": "Radeon RX 9070 desktop (community)",
+  "cpu": "AMD Ryzen 9 9950X (16 cores)",
+  "gpus": [
+   "AMD Radeon RX 9070 (RDNA 4, gfx1201)"
+  ],
+  "os": "Linux",
+  "by": "solarpush",
+  "source": "https://github.com/ollaya-dev/ollaya/pull/33",
+  "kind": "community",
+  "headline": "RX 9070"
+ }
+}
