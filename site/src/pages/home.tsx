@@ -238,6 +238,7 @@ const scoreboard: { tag: string; acc: number; ms: number; pick?: boolean; note?:
   { tag: 'decider:2b', acc: 0.591, ms: 190 },
   { tag: 'nli', acc: 0.548, ms: 20 },
   { tag: 'decider:0.8b', acc: 0.506, ms: 155 },
+  { tag: 'decima:base', acc: 0.495, ms: 15 },
   { tag: 'gliclass', acc: 0.477, ms: 15 },
   { tag: 'kev:0.8b', acc: 0.46, ms: 128 },
   { tag: 'von', acc: 0.447, ms: 23 },

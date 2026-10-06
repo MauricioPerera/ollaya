@@ -2,8 +2,8 @@
 
     uv run python -m ollaya_convert.families.decima.goldens OUT_DIR [--td-limit 40] [--device cpu]
 
-OUT_DIR is the export (its decision.json and tokenizer.json). Writes goldens-decima-small.jsonl next to it, one JSON
-line per request of the shared set (the edge cases and --td-limit typed-decisions rows, as the shared request file
+OUT_DIR is the export (its decision.json, which names the model, and tokenizer.json). Writes goldens-<model>.jsonl next
+to it, one JSON line per request of the shared set (the edge cases and --td-limit typed-decisions rows, as the shared request file
 has them) and `check.extra_cases`:
     {"id", "state", "questions",
      "error": null | {"code": "INVALID_REQUEST" | "STATE_TRUNCATED", "message"},   upstream /v1/systemone's 422
@@ -48,10 +48,11 @@ def main():
     ap.add_argument("--device", default="cpu")
     ap.add_argument("--out", default=None)
     a = ap.parse_args()
-    d = ref.load(a.device)
     decision = json.load(open(os.path.join(a.model_dir, "decision.json")))
+    slug = next(k for k, m in ref.MODELS.items() if m["repo"] == decision["upstream"]["repo"])
+    d = ref.load(a.device, slug)
     lay = DecimaLayout(tokenizer(os.path.join(a.model_dir, "tokenizer.json")), decision)
-    path = a.out or os.path.join(os.path.dirname(os.path.abspath(a.model_dir)), "goldens-decima-small.jsonl")
+    path = a.out or os.path.join(os.path.dirname(os.path.abspath(a.model_dir)), "goldens-%s.jsonl" % slug)
 
     def record(cid, state, questions):
         verdict = compare(d, lay, state, questions)

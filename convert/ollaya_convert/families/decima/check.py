@@ -1,6 +1,6 @@
 """The layout port against upstream, id for id, on the shared request set.
 
-    uv run python -m ollaya_convert.families.decima.check [--td 400]
+    uv run python -m ollaya_convert.families.decima.check [--model decima-small] [--td 400]
 
 Upstream: serve.py's verdict, then decima.systemone.to_question, DecimaConfig.state_of / choice_of and the
 checkpoint's tokenizer through transformers, truncated as Decima._encode truncates (`ref.encode`). The port:
@@ -136,10 +136,11 @@ def compare(d, lay, state, questions):
 
 def main():
     ap = argparse.ArgumentParser()
+    ap.add_argument("--model", default=ref.DEFAULT, choices=sorted(ref.MODELS))
     ap.add_argument("--td", type=int, default=400, help="typed-decisions rows (0: all 400)")
     a = ap.parse_args()
-    d = ref.load("cpu")
-    lay = DecimaLayout(tokenizer(os.path.join(ref.checkpoint(), "encoder", "tokenizer.json")), decision_for(d))
+    d = ref.load("cpu", a.model)
+    lay = DecimaLayout(tokenizer(os.path.join(ref.checkpoint(a.model), "encoder", "tokenizer.json")), decision_for(d))
     counts = {"identical": 0, "rejected": 0, "shared": 0, "truncated": 0}
     bad = []
     for cid, state, questions in all_cases(a.td):

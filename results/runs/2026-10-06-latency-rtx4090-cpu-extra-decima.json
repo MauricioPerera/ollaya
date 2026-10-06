@@ -26,10 +26,10 @@
   "n": 10,
   "client": "one request at a time over HTTP to /api/decide, timed by the client; each request a different short message, in turn"
  },
- "note": "decima, measured on a development build (0.10.0 with the decima-late-interaction-v1 engine) before its release; the same protocol and machine as the 2026-10-01 RTX 4090 sweep.",
+ "note": "decima, measured on a development build (0.10.0 with the decima-late-interaction-v1 engine) before its release; the same protocol and machine as the 2026-10-01 RTX 4090 sweep. decima:small was timed under decima:latest, its alias in that build's registry; decima:base and decima:agent 30 minutes later, with the same build.",
  "results": [
   {
-   "model": "decima:latest",
+   "model": "decima:small",
    "questions": "triage",
    "load_ms": 582.6,
    "first_request_ms": 740.1,
@@ -39,6 +39,34 @@
    "min_ms": 142.8,
    "eval_p50_ms": 145.2,
    "input_tokens": 567,
+   "device": "cpu",
+   "precision": "F32"
+  },
+  {
+   "model": "decima:base",
+   "questions": "triage",
+   "load_ms": 1365.6,
+   "first_request_ms": 1808.2,
+   "answered_by": "decima:base",
+   "p50_ms": 438.0,
+   "p90_ms": 452.2,
+   "min_ms": 428.5,
+   "eval_p50_ms": 437.5,
+   "input_tokens": 458,
+   "device": "cpu",
+   "precision": "F32"
+  },
+  {
+   "model": "decima:agent",
+   "questions": "triage",
+   "load_ms": 1291.8,
+   "first_request_ms": 1728.8,
+   "answered_by": "decima:agent",
+   "p50_ms": 438.7,
+   "p90_ms": 442.4,
+   "min_ms": 430.0,
+   "eval_p50_ms": 438.1,
+   "input_tokens": 458,
    "device": "cpu",
    "precision": "F32"
   }

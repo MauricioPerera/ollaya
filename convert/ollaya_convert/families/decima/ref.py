@@ -1,17 +1,18 @@
-"""The PyTorch reference for amyrmahdy/decima-small: the author's own code (github.com/amyrmahdy/decima at v1.1.1,
-pinned below) on the model repository's `pytorch/` checkpoint, in fp32.
+"""The PyTorch reference for Decima (amyrmahdy/decima-small, -base and -agent): the author's own code
+(github.com/amyrmahdy/decima at v1.1.1, pinned below) on each model repository's `pytorch/` checkpoint, in fp32.
 
-    d = ref.load("cpu")                                  # upstream decima.model.Decima (fp32, eval)
+    d = ref.load("cpu", "decima-base")                   # upstream decima.model.Decima (fp32, eval)
     code, message = ref.verdict(d, state, questions)     # serve.py's checks: None, INVALID_REQUEST or STATE_TRUNCATED
     items = ref.encode(d, state, questions)              # per question: texts, token ids, truncation
     out = ref.forward(d, item)                           # raw scores, ordinal projections, log-probabilities
     answers = ref.answers(d, state, questions)           # decima.systemone.system_one, as /v1/systemone answers
 
-Decima is a late-interaction decision model: an e5-small encoder (intfloat/multilingual-e5-small, MIT) fine-tuned
-with a two-layer scorer (Apache-2.0). Per question, every text is encoded on its own:
+Decima is a late-interaction decision model: an encoder (intfloat/multilingual-e5-small for small, jhu-clsp/mmBERT-base
+for base and agent, both MIT) fine-tuned with a two-layer scorer (Apache-2.0). Per question, every text is encoded
+on its own (the prefixes are e5's "query: " and "passage: " for small, empty for mmBERT):
 
-    state row     "query: "   + normalize(instructions + "\\n" + state)     (question_in_state)
-    option rows   "passage: " + normalize(instructions + " " + option)      (question_in_choices), one per option
+    state row     state_prefix  + normalize(instructions + "\\n" + state)  (question_in_state)
+    option rows   choice_prefix + normalize(instructions + " " + option)   (question_in_choices), one per option
     scorer        per option row: [self-attention, cross-attention over the state row's tokens, FFN] x 2, the
                   masked mean, a linear score, plus the bi-encoder skip sim_scale * (cos(mean state, mean option)
                   - sim_center)  ->  one raw score s_k per option; options never see each other
@@ -44,14 +45,24 @@ import urllib.request
 import numpy as np
 import torch
 
-REPO = "amyrmahdy/decima-small"
-# The tag v1.1.1 (an annotated tag object, 83d3a5c, on this commit): "Scoring head as safetensors (identical to
-# head.pt)", 2026-10-03.
-REVISION = "2e7f4d0757df0215f48f2a9b2b589e1f3a6348ed"
-TAG = "v1.1.1"
+MODELS = {
+    # The tag v1.1.1 (an annotated tag object, 83d3a5c, on this commit): "Scoring head as safetensors (identical to
+    # head.pt)", 2026-10-03.
+    "decima-small": {"repo": "amyrmahdy/decima-small", "revision": "2e7f4d0757df0215f48f2a9b2b589e1f3a6348ed",
+                     "tag": "v1.1.1", "base": "intfloat/multilingual-e5-small (MIT)"},
+    # The tag v2.0, 2026-10-04: the mmBERT-base generation.
+    "decima-base": {"repo": "amyrmahdy/decima-base", "revision": "2468005d5e48e95eb74072c32a6d9df164578071",
+                    "tag": "v2.0", "base": "jhu-clsp/mmBERT-base (MIT)"},
+    # The tag v2.1, 2026-10-05: decima-base fine-tuned for agent decisions, states up to 2,048 tokens.
+    "decima-agent": {"repo": "amyrmahdy/decima-agent", "revision": "86a07aab1c340fa5869bdb754e57d3851a1d288a",
+                     "tag": "v2.1", "base": "amyrmahdy/decima-base, on jhu-clsp/mmBERT-base (MIT)"},
+}
+DEFAULT = "decima-small"
 CHECKPOINT = "pytorch"   # encoder/ (config, model.safetensors, tokenizer), head.safetensors, decima.json
 FILES = ["LICENSE", "pytorch/decima.json", "pytorch/head.safetensors", "pytorch/encoder/config.json",
          "pytorch/encoder/model.safetensors", "pytorch/encoder/tokenizer.json", "pytorch/encoder/tokenizer_config.json"]
+# decima/ (model.py, systemone.py, serve.py and the rest of the package) is byte-identical at v2.0.0 (a58f99c9), the
+# release of decima-base and decima-agent, and on main through 9b7b23de: one pin serves every model.
 CODE = {"repo": "https://github.com/amyrmahdy/decima", "tag": "v1.1.1",
         "commit": "2df60942c68b0e1dfc87743462745bacdd936d8a"}
 OUT = os.path.join(os.path.dirname(__file__), "..", "..", "..", "out")
@@ -65,15 +76,16 @@ class RequestError(ValueError):
         self.code = code
 
 
-def snapshot():
-    """The model repository at REVISION (only the PyTorch checkpoint and the license)."""
+def snapshot(slug=DEFAULT):
+    """The model repository at its pinned revision (only the PyTorch checkpoint and the license)."""
     from huggingface_hub import snapshot_download
 
-    return os.environ.get("DECIMA_MODEL") or snapshot_download(REPO, revision=REVISION, allow_patterns=FILES)
+    m = MODELS[slug]
+    return os.environ.get("DECIMA_MODEL") or snapshot_download(m["repo"], revision=m["revision"], allow_patterns=FILES)
 
 
-def checkpoint(snap=None):
-    return os.path.join(snap or snapshot(), CHECKPOINT)
+def checkpoint(slug=DEFAULT, snap=None):
+    return os.path.join(snap or snapshot(slug), CHECKPOINT)
 
 
 def code():
@@ -101,7 +113,7 @@ def code():
     return src
 
 
-def load(device="cpu", snap=None):
+def load(device="cpu", slug=DEFAULT, snap=None):
     """Upstream `decima.model.Decima` on the PyTorch checkpoint (fp32, eval; TF32 off)."""
     code()
     torch.backends.cuda.matmul.allow_tf32 = False
@@ -109,7 +121,7 @@ def load(device="cpu", snap=None):
     from decima.model import Decima
     from safetensors.torch import load_file
 
-    path = checkpoint(snap)
+    path = checkpoint(slug, snap)
     d = Decima(path, device)
     # DecimaModel.load uses load_state_dict(strict=False): prove every head tensor landed, and nothing else is missing.
     head = load_file(os.path.join(path, "head.safetensors"))
@@ -219,7 +231,7 @@ def answers(d, state, questions):
 
 
 def main():
-    d = load("cpu")
+    d = load("cpu", sys.argv[1] if len(sys.argv) > 1 else DEFAULT)
     state = "My card was charged twice"
     qs = {"team": {"type": "choice", "instructions": "Which team?", "criteria": {"billing": "charges, refunds",
                                                                                  "tech": "bugs"}},

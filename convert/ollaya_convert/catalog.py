@@ -83,6 +83,15 @@ def _wl(slug, repo, commit, description, params, ctx, languages, license=None, l
     }
 
 
+def _decima(slug, commit, description, params, ctx):
+    """A Decima tag: the encoder and the head from the repository's pytorch/ checkpoint, and its tokenizer."""
+    return dict(_wl(slug, "amyrmahdy/" + slug, commit, description, params, ctx, ["multilingual"],
+                    wl_dir=os.path.join(OUT, slug),
+                    weights={"model.safetensors": "pytorch/encoder/model.safetensors",
+                             "head.safetensors": "pytorch/head.safetensors"}),
+                tokenizer="pytorch/encoder/tokenizer.json")
+
+
 def _kev_weights(base, base_commit, shards):
     """Graph location -> upstream file of a Kev checkpoint: the base model's shards from Qwen's repository, the
     adapter and head.pt from Kev's."""
@@ -569,28 +578,36 @@ CATALOG = {
         "family": "decima",
         "author": "A. M. Madani (amyrmahdy)",
         "license": "Apache-2.0",
-        "license_text": ("Decima-small by A. M. Madani (https://huggingface.co/amyrmahdy/decima-small, "
-                         "https://github.com/amyrmahdy/decima), Apache-2.0.\n"
-                         "Base model: multilingual-e5-small by intfloat "
-                         "(https://huggingface.co/intfloat/multilingual-e5-small), MIT License.\n"
+        "license_text": ("Decima-small, Decima-base and Decima-agent by A. M. Madani "
+                         "(https://huggingface.co/amyrmahdy, https://github.com/amyrmahdy/decima), Apache-2.0.\n"
+                         "Base models: multilingual-e5-small by intfloat "
+                         "(https://huggingface.co/intfloat/multilingual-e5-small) for Decima-small, and mmBERT-base "
+                         "by JHU CLSP (https://huggingface.co/jhu-clsp/mmBERT-base) for Decima-base and "
+                         "Decima-agent, both MIT License.\n"
                          "Licensed under the Apache License, Version 2.0.\n\n") + LICENSE_APACHE,
+        # The fp32 PyTorch checkpoint under pytorch/ of each repository, the encoder and the late-interaction
+        # head in two files; the author's int8 ONNX exports are not used. The code is the GitHub tag v1.1.1
+        # (2df60942); decima/ is unchanged at v2.0.0, which released base and agent.
         "tags": {
-            # v1.1.1 (HF tag v1.1.1, GitHub tag v1.1.1 = 2df60942): the fp32 PyTorch checkpoint under
-            # pytorch/, the encoder and the late-interaction head in two files. The author's int8 ONNX
-            # export is not used.
-            "small": dict(_wl("decima-small", "amyrmahdy/decima-small", "2e7f4d0757df0215f48f2a9b2b589e1f3a6348ed",
-                              "A. M. Madani's Decima-small 1.1: multilingual-e5-small with a late-interaction "
-                              "scorer that reads every option against the state, and an ordinal head for "
-                              "scores, with the author's temperature. 122M parameters; fast on a CPU.",
-                              "122M", 512, ["multilingual"], wl_dir=os.path.join(OUT, "decima-small"),
-                              weights={"model.safetensors": "pytorch/encoder/model.safetensors",
-                                       "head.safetensors": "pytorch/head.safetensors"}),
-                         tokenizer="pytorch/encoder/tokenizer.json"),
+            "small": _decima("decima-small", "2e7f4d0757df0215f48f2a9b2b589e1f3a6348ed",  # HF tag v1.1.1
+                             "A. M. Madani's Decima-small 1.1: multilingual-e5-small with a late-interaction "
+                             "scorer that reads every option against the state, and an ordinal head for "
+                             "scores, with the author's temperature. 122M parameters; fast on a CPU.",
+                             "122M", 512),
+            "base": _decima("decima-base", "2468005d5e48e95eb74072c32a6d9df164578071",  # HF tag v2.0
+                            "A. M. Madani's Decima-base 2.0: mmBERT-base with Decima's late-interaction scorer "
+                            "and ordinal head, with the author's temperature. 321M parameters, multilingual.",
+                            "321M", 512),
+            "agent": _decima("decima-agent", "86a07aab1c340fa5869bdb754e57d3851a1d288a",  # HF tag v2.1
+                             "A. M. Madani's Decima-agent 2.1: Decima-base fine-tuned for the decisions inside "
+                             "a coding agent's loop (secret and command gates, tool, command and model choice). "
+                             "States up to 2,048 tokens.",
+                             "321M", 2048),
         },
-        "aliases": {"latest": "small"},
-        "parity": "Ollaya's Rust runtime matches the author's own code (decima/model.py and systemone.py at v1.1.1, "
-                  "fp32) on 581 questions from 122 requests, on CPU and CUDA (RTX 4090 and RTX 5090): identical "
-                  "token rows, the same 3 truncated states and 18 rejected requests, the same decision on every "
-                  "question, scores within 1.2e-5 and probabilities within 2.3e-6.",
+        "aliases": {"latest": "base"},
+        "parity": "Ollaya's Rust runtime matches the author's own code (decima/model.py and systemone.py, fp32) on "
+                  "581 questions from 122 requests for each of small, base and agent, on CPU and CUDA (RTX 4090 and "
+                  "RTX 5090): identical token rows and truncation, the same 18 rejected requests, the same decision "
+                  "on every question, scores within 2.0e-5 and probabilities within 5.5e-6.",
     },
 }

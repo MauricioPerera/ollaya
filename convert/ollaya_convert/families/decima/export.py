@@ -1,6 +1,6 @@
 """Export Decima (the e5-small encoder and the late-interaction scorer) to one weightless ONNX graph.
 
-    uv run python -m ollaya_convert.families.decima.export --out out/decima-small
+    uv run python -m ollaya_convert.families.decima.export [--model decima-small] [--out out/decima-small]
 
 Graph (every question of a request in one run; docs/families/decima.md):
     inputs   state_ids     int64   [q, ls]  each question's state row, right-padded with the pad id
@@ -77,11 +77,11 @@ SAMPLE = {
 }
 
 
-def export_graph(model, inputs, path):
+def export_graph(model, inputs, path, max_state_tokens):
     args = tuple(torch.from_numpy(inputs[k]) for k in INPUT_NAMES)
     q = torch.export.Dim("questions", min=1, max=256)
     o = torch.export.Dim("options", min=1, max=65536)
-    ls = torch.export.Dim("state_len", min=2, max=512)
+    ls = torch.export.Dim("state_len", min=2, max=max(512, max_state_tokens))
     lo = torch.export.Dim("option_len", min=2, max=512)
     dyn = {"state_ids": {0: q, 1: ls}, "state_mask": {0: q, 1: ls}, "option_ids": {0: o, 1: lo},
            "option_mask": {0: o, 1: lo}, "option_state": {0: o}}
@@ -121,10 +121,11 @@ def verify(d, lay, graph, pad, requests):
     return n, worst
 
 
-def export(out_dir):
-    d = ref.load("cpu")
-    snap = ref.snapshot()
-    ckpt = ref.checkpoint(snap)
+def export(slug, out_dir):
+    m = ref.MODELS[slug]
+    d = ref.load("cpu", slug)
+    snap = ref.snapshot(slug)
+    ckpt = ref.checkpoint(slug, snap)
     tok_json = os.path.join(ckpt, "encoder", "tokenizer.json")
     layout = decision_for(d)
     lay = DecimaLayout(tokenizer(tok_json), layout)
@@ -135,11 +136,11 @@ def export(out_dir):
     print("sample shapes", shape)
 
     tmp = tempfile.mkdtemp(prefix="decima-export-", dir=os.environ.get("OLLAYA_SCRATCH"))
-    export_graph(d.model, inputs, os.path.join(tmp, "model.onnx"))
+    export_graph(d.model, inputs, os.path.join(tmp, "model.onnx"), d.cfg.max_state_tokens)
     sources = [safetensors_source("model.safetensors", os.path.join(ckpt, "encoder", "model.safetensors"),
-                                  repo=ref.REPO, revision=ref.REVISION, filename="pytorch/encoder/model.safetensors"),
+                                  repo=m["repo"], revision=m["revision"], filename="pytorch/encoder/model.safetensors"),
                safetensors_source("head.safetensors", os.path.join(ckpt, "head.safetensors"),
-                                  repo=ref.REPO, revision=ref.REVISION, filename="pytorch/head.safetensors")]
+                                  repo=m["repo"], revision=m["revision"], filename="pytorch/head.safetensors")]
     # Exporter names are module paths under Graph.m: the encoder's are model.safetensors' keys, the scorer's are
     # head.safetensors' keys.
     report = make_weightless(tmp, out_dir, sources, [("m.encoder.", ""), ("m.", "")], link=True, sidecars=())
@@ -157,9 +158,8 @@ def export(out_dir):
 
     decision = {
         "engine": "onnx", "family": "decima", "layout": LAYOUT,
-        "upstream": {"repo": ref.REPO, "revision": ref.REVISION, "tag": ref.TAG, "checkpoint": ref.CHECKPOINT,
-                     "code": ref.CODE, "license": "Apache-2.0",
-                     "base": "intfloat/multilingual-e5-small (MIT)"},
+        "upstream": {"repo": m["repo"], "revision": m["revision"], "tag": m["tag"], "checkpoint": ref.CHECKPOINT,
+                     "code": ref.CODE, "license": "Apache-2.0", "base": m["base"]},
         "contract": {
             "inputs": {"state_ids": {"dtype": "int64", "shape": ["questions", "state_len"],
                                      "note": "each question's state row, right-padded with special_tokens.pad"},
@@ -183,18 +183,18 @@ def export(out_dir):
         "source": "pytorch/decima.json `temperature`, fitted by the author. Score questions take it inside the "
                   "ordinal head (decision.json `temperature`), so their slot here is 1.",
     }
-    files = {"model": "decima-small", "layers": [
+    files = {"model": slug, "layers": [
         {"role": "graph", "path": "model.onnx", "hosted_by": "ollaya",
          "bytes": os.path.getsize(os.path.join(out_dir, "model.onnx")),
          "sha256": ox.sha256_file(os.path.join(out_dir, "model.onnx"))},
-        ox.file_entry("weights", ref.REPO, ref.REVISION, "pytorch/encoder/model.safetensors",
+        ox.file_entry("weights", m["repo"], m["revision"], "pytorch/encoder/model.safetensors",
                       os.path.join(ckpt, "encoder", "model.safetensors"), location="model.safetensors"),
-        ox.file_entry("weights/head", ref.REPO, ref.REVISION, "pytorch/head.safetensors",
+        ox.file_entry("weights/head", m["repo"], m["revision"], "pytorch/head.safetensors",
                       os.path.join(ckpt, "head.safetensors"), location="head.safetensors"),
-        ox.file_entry("tokenizer", ref.REPO, ref.REVISION, "pytorch/encoder/tokenizer.json", tok_json),
+        ox.file_entry("tokenizer", m["repo"], m["revision"], "pytorch/encoder/tokenizer.json", tok_json),
         {"role": "decision", "path": "decision.json", "hosted_by": "ollaya"},
         {"role": "calibration", "path": "calibration.json", "hosted_by": "ollaya"},
-        ox.file_entry("license", ref.REPO, ref.REVISION, "LICENSE", os.path.join(snap, "LICENSE"))],
+        ox.file_entry("license", m["repo"], m["revision"], "LICENSE", os.path.join(snap, "LICENSE"))],
         "weightless": {k: v for k, v in report.items() if k != "unused"},
         "unused_checkpoint_tensors": report["unused"],
         "export_check": {"questions": n, "max_abs_diff": worst}}
@@ -210,10 +210,12 @@ def export(out_dir):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--out", default=os.path.join(ref.OUT, "decima-small"))
+    ap.add_argument("--model", default=ref.DEFAULT, choices=sorted(ref.MODELS))
+    ap.add_argument("--out", default=None, help="default: out/<model>")
     a = ap.parse_args()
-    os.makedirs(a.out, exist_ok=True)
-    export(a.out)
+    out = a.out or os.path.join(ref.OUT, a.model)
+    os.makedirs(out, exist_ok=True)
+    export(a.model, out)
 
 
 if __name__ == "__main__":
