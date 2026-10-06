@@ -98,6 +98,7 @@ pub const LAYOUTS: &[&str] = &[
     "nimble-codes-v1",
     "jeeves-markers-v1",
     "clef-joint-v1",
+    "decima-late-interaction-v1",
 ];
 
 /// The layout a `decision` layer declares.
@@ -154,6 +155,9 @@ pub fn load(
             files, device, threads,
         )?)),
         "clef-joint-v1" => Ok(Box::new(crate::clef::ClefModel::load_files(
+            files, device, threads,
+        )?)),
+        "decima-late-interaction-v1" => Ok(Box::new(crate::decima::DecimaModel::load_files(
             files, device, threads,
         )?)),
         other => Err(Error::Model(format!(

@@ -11,6 +11,7 @@ pub mod clef;
 pub mod clm;
 pub mod cygnet;
 pub mod decider;
+pub mod decima;
 pub mod decision;
 pub mod gliclass;
 pub mod jebadiah;

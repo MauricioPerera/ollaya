@@ -7,6 +7,7 @@ pub mod clef;
 pub mod clm;
 pub mod decider;
 pub mod decider_vision;
+pub mod decima;
 pub mod decision;
 pub mod engine;
 pub mod gliclass;
